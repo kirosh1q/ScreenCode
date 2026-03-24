@@ -18,8 +18,10 @@ export default function App() {
     const [showHistory, setShowHistory] = useState(false)
 
     const { previewUrl, loading, result, error, handleFile, generate, handleCodeUpdate, reset, restoreResult } = useGeneration()
-    const { user, login, logout } = useAuth()
+    const { user, authLoading, login, logout } = useAuth()
     const navigate = useNavigate()
+
+    if (authLoading) return <div>Загрузка...</div>
 
     function handleNavigate(path) {
         reset()

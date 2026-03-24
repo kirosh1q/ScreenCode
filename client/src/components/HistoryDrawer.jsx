@@ -32,10 +32,24 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
     async function deleteOne(id, e) {
         e.stopPropagation()
         const token = localStorage.getItem('token')
-        await fetch(`http://localhost:3001/api/history/${id}`, {
+
+        const res = await fetch(`http://localhost:3001/api/history/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         })
+
+        // Проверка ответа
+        if (!res.ok) {
+            try {
+                const data = await res.json()
+                alert(`Ошибка: ${data.error || 'Неизвестная ошибка'}`)
+            } catch {
+                alert(`Ошибка сервера: ${res.status}`)
+            }
+            return  // Не обновляем UI, если ошибка
+        }
+
+        // Только если всё ок — обновляем UI
         setGenerations(prev => prev.filter(g => g._id !== id))
     }
 

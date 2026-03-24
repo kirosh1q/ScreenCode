@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 export const stacks = ['HTML + Tailwind', 'HTML + CSS', 'React + Tailwind']
 export const models = ['Qwen3 VL']
 
@@ -8,6 +9,17 @@ export default function LeftPanel({
                                       selectedMode, setSelectedMode,
                                       onGenerate, error
                                   }) {
+    const [models, setModels] = useState(['Qwen3 VL']) // дефолтное значение
+
+    useEffect(() => {
+        fetch('/api/models')  // относительный URL — Vite проксирует на сервер
+            .then(r => r.json())
+            .then(data => {
+                // Сохраняем только названия для UI
+                setModels(data.models.map(m => m.name))
+            })
+            .catch(err => console.error('Не удалось загрузить модели:', err))
+    }, []) // пустой массив = выполнить один раз при монтировании
 
     function handleChange(e) {
         const f = e.target.files[0]

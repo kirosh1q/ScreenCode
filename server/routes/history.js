@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const Generation = require('../models/Generation')
 const authMiddleware = require('../middleware/authMiddleware')
+const { Types } = require('mongoose')
 
 router.use(authMiddleware)
 
@@ -45,9 +46,19 @@ router.get('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
     try {
-        await Generation.deleteOne({ _id: req.params.id, userId: req.userId })
+        // Кастуем строку в ObjectId + проверяем deletedCount
+        const result = await Generation.deleteOne({
+            _id: new Types.ObjectId(req.params.id),
+            userId: req.userId
+        })
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Запись не найдена или недоступна' })
+        }
+
         res.json({ success: true })
     } catch (error) {
+        console.error('Ошибка удаления:', error.message)
         res.status(500).json({ error: error.message })
     }
 })
