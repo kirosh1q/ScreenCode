@@ -84,6 +84,7 @@ export default function App() {
                             setSelectedMode={setSelectedMode}
                             onGenerate={() => generate(selectedStack, selectedMode)}
                             error={error}
+                            user={user}
                         />
                         <CenterPanel loading={loading} result={result} onCodeUpdate={handleCodeUpdate} />
                         {result && <RightPanel result={result} onCodeUpdate={handleCodeUpdate} />}

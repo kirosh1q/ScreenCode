@@ -9,7 +9,7 @@ function authMiddleware(req, res, next) {
         req.userId = decoded.userId
         next()
     } catch {
-        res.status(401).json({ error: 'Невалидный токен' })
+        res.status(401).json({ error: 'Вы не авторизованы' })
     }
 }
 

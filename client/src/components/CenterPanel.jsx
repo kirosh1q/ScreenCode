@@ -147,7 +147,7 @@ export default function CenterPanel({ loading, result, onCodeUpdate }) {
             {!loading && !result && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', gap: 12 }}>
                     <div style={{ width: 52, height: 52, border: '1.5px dashed #d1d5db', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}></div>
-                    <p style={{ fontSize: 12, textAlign: 'center', lineHeight: 1.6 }}>Загрузи скрин<br /></p>
+                    <p style={{ fontSize: 12, textAlign: 'center', lineHeight: 1.6 }}>Загрузка скрина<br /></p>
                 </div>
             )}
 

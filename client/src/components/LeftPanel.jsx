@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 export const stacks = ['HTML + Tailwind', 'HTML + CSS', 'React + Tailwind']
-export const models = ['Qwen3 VL']
+export const models = ['Qwen 3.5']
 
 export default function LeftPanel({
                                       previewUrl, onFile, loading,
                                       selectedStack, setSelectedStack,
                                       selectedModel, setSelectedModel,
                                       selectedMode, setSelectedMode,
-                                      onGenerate, error
+                                      onGenerate, error, user,
                                   }) {
-    const [models, setModels] = useState(['Qwen3 VL']) // дефолтное значение
+    const [models, setModels] = useState(['Qwen 3.5']) // дефолтное значение
 
     useEffect(() => {
         fetch('/api/models')  // относительный URL — Vite проксирует на сервер
@@ -36,26 +36,45 @@ export default function LeftPanel({
         <div style={{ background: '#fff', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
 
             {/* Скриншот */}
+            {/* Скриншот */}
             <div style={block}>
                 <div style={label}>Скриншот</div>
-                {previewUrl ? (
-                    <img src={previewUrl} style={{ width: '100%', borderRadius: 8, maxHeight: 160, objectFit: 'cover', border: '1px solid #e5e7eb' }} />
-                ) : (
-                    <label
-                        onDragOver={e => e.preventDefault()}
-                        onDrop={handleDrop}
-                        style={{ display: 'block', border: '1.5px dashed #d1d5db', borderRadius: 8, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', background: '#fafafa' }}
-                    >
-                        <input type="file" accept="image/*" onChange={handleChange} style={{ display: 'none' }} />
+                {!user ? (
+                    <div style={{
+                        border: '1.5px dashed #d1d5db',
+                        borderRadius: 8,
+                        padding: '24px 16px',
+                        textAlign: 'center',
+                        background: '#fafafa',
+                        color: '#9ca3af'
+                    }}>
                         <div style={{ fontSize: 24, marginBottom: 6 }}></div>
-                        <div style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>Выбор файла</div>
-                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>PNG, JPG, WEBP</div>
-                    </label>
-                )}
-                {previewUrl && (
-                    <button onClick={() => onFile(null)} style={{ marginTop: 6, fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
-                        ✕ убрать
-                    </button>
+                        <div style={{ fontSize: 12, fontWeight: 500 }}>Войдите в аккаунт</div>
+                        <div style={{ fontSize: 11, marginTop: 4 }}>чтобы загрузить скриншот</div>
+                    </div>
+                ) : (
+                    // Твоя существующая логика с previewUrl, label, input и т.д.
+                    <>
+                        {previewUrl ? (
+                            <img src={previewUrl} style={{ width: '100%', borderRadius: 8, maxHeight: 160, objectFit: 'cover', border: '1px solid #e5e7eb' }} />
+                        ) : (
+                            <label
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={handleDrop}
+                                style={{ display: 'block', border: '1.5px dashed #d1d5db', borderRadius: 8, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', background: '#fafafa' }}
+                            >
+                                <input type="file" accept="image/*" onChange={handleChange} style={{ display: 'none' }} />
+                                <div style={{ fontSize: 24, marginBottom: 6 }}></div>
+                                <div style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>Выбор файла</div>
+                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>PNG, JPG, WEBP</div>
+                            </label>
+                        )}
+                        {previewUrl && (
+                            <button onClick={() => onFile(null)} style={{ marginTop: 6, fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                ✕ убрать
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -125,13 +144,17 @@ export default function LeftPanel({
                 )}
                 <button
                     onClick={onGenerate}
-                    disabled={loading || !previewUrl}
+                    disabled={loading || !previewUrl || !user}
                     style={{
-                        width: '100%', padding: 11,
-                        background: loading || !previewUrl ? '#d1d5db' : '#111',
-                        border: 'none', borderRadius: 8, color: '#fff',
-                        fontSize: 13, fontWeight: 500,
-                        cursor: loading || !previewUrl ? 'not-allowed' : 'pointer'
+                        width: '100%',
+                        padding: 11,
+                        background: (loading || !previewUrl || !user) ? '#d1d5db' : '#111',
+                        border: 'none',
+                        borderRadius: 8,
+                        color: '#fff',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: (loading || !previewUrl || !user) ? 'not-allowed' : 'pointer'
                     }}
                 >
                     {loading ? 'Генерирую...' : 'Сгенерировать'}

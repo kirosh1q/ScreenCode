@@ -28,6 +28,11 @@ app.use('/api/debug', require('./routes/debug'))
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/history', require('./routes/history'))
 app.use('/api/generate', require('./routes/generate'))
+// Эндпоинт для получения данных последней генерации
+const lastGenerationDebug = require('./debugStore')
+app.get('/api/last-debug', (req, res) => {
+    res.json(lastGenerationDebug)
+})
 app.use('/api/edit', require('./routes/edit'))
 
 const PORT = process.env.PORT || 3001

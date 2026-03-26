@@ -33,8 +33,12 @@ export function useGeneration() {
             form.append('stack', selectedStack)
             form.append('mode', selectedMode)
 
+            const token = localStorage.getItem('token')
             const res = await fetch('http://localhost:3001/api/generate', {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
                 body: form
             })
 
@@ -42,7 +46,6 @@ export function useGeneration() {
             if (!res.ok) throw new Error(data.error || 'Ошибка сервера')
             setResult(data.data)
 
-            const token = localStorage.getItem('token')
             if (token) {
                 fetch('http://localhost:3001/api/history', {
                     method: 'POST',
