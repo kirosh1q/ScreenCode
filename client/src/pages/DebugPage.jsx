@@ -133,7 +133,7 @@ export default function DebugPage() {
 
                 {/* ═══════════ Настройки запуска (только в ручном режиме) ═══════════ */}
                 {showSettings && (
-                    <div className="flex gap-3 mb-5 items-end">
+                    <div className="flex gap-3 mb-5 items-end flex-wrap">
                         <div>
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
                                 Изображение
@@ -209,8 +209,9 @@ export default function DebugPage() {
 
                 {/* ═══════════ Сетка изображений (этапы предобработки) ═══════════ */}
                 {showImages && (
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                        {/* Оригинал */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+
+                        {/* Оригинал (blob URL из FileReader) */}
                         {previewUrl && (
                             <div className="bg-white border border-gray-200 rounded-lg p-4">
                                 <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
@@ -220,78 +221,59 @@ export default function DebugPage() {
                             </div>
                         )}
 
-                        {/* Обработанное через Sharp */}
+                        {/* Обработанное через Sharp — src уже содержит data URL */}
                         {result?.base64Image && (
                             <div className="bg-white border border-gray-200 rounded-lg p-4">
                                 <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
                                     Обработанное (Sharp)
                                 </div>
-                                <img
-                                    src={`data:image/png;base64,${result.base64Image}`}
-                                    alt="Обработанное"
-                                    className="w-full rounded-md"
-                                />
+                                <img src={result.base64Image} alt="Обработанное" className="w-full rounded-md" />
                             </div>
                         )}
 
-                        {/* С координатной сеткой */}
+                        {/* С координатной сеткой — src уже содержит data URL */}
                         {result?.base64Grid && (
                             <div className="bg-white border border-gray-200 rounded-lg p-4">
                                 <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
                                     С сеткой (Pass 1)
                                 </div>
-                                <img
-                                    src={`data:image/png;base64,${result.base64Grid}`}
-                                    alt="С сеткой"
-                                    className="w-full rounded-md"
-                                />
+                                <img src={result.base64Grid} alt="С сеткой" className="w-full rounded-md" />
                                 {result.gridInfo && (
                                     <div className="text-[11px] text-gray-500 mt-1.5">
                                         Ячейка: {result.gridInfo.colW}×{result.gridInfo.rowH}px
+                                        · Сетка: {result.gridInfo.cols}×{result.gridInfo.rows}
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* Кроп верха */}
+                        {/* Кроп верха — src уже содержит data URL */}
                         {result?.base64Top && (
                             <div className="bg-white border border-gray-200 rounded-lg p-4">
                                 <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
                                     Кроп верха (0-30%)
                                 </div>
-                                <img
-                                    src={`data:image/png;base64,${result.base64Top}`}
-                                    alt="Кроп верха"
-                                    className="w-full rounded-md"
-                                />
+                                <img src={result.base64Top} alt="Кроп верха" className="w-full rounded-md" />
                             </div>
                         )}
 
-                        {/* Кроп центра */}
+                        {/* Кроп центра — src уже содержит data URL */}
                         {result?.base64Middle && (
                             <div className="bg-white border border-gray-200 rounded-lg p-4">
                                 <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
                                     Кроп центра (30-60%)
                                 </div>
-                                <img
-                                    src={`data:image/png;base64,${result.base64Middle}`}
-                                    alt="Кроп центра"
-                                    className="w-full rounded-md"
-                                />
+                                <img src={result.base64Middle} alt="Кроп центра" className="w-full rounded-md" />
                             </div>
                         )}
 
-                        {/* Кроп низа */}
+                        {/* Кроп низа — src уже содержит data URL */}
                         {result?.base64Bottom && (
                             <div className="bg-white border border-gray-200 rounded-lg p-4">
                                 <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
                                     Кроп низа (60-100%)
                                 </div>
-                                <img
-                                    src={`data:image/png;base64,${result.base64Bottom}`}
-                                    alt="Кроп низа"
-                                    className="w-full rounded-md"
-                                />
+                                <img src={result.base64Bottom} alt="Кроп низа" className="w-full rounded-md" />
                             </div>
                         )}
                     </div>
@@ -299,7 +281,7 @@ export default function DebugPage() {
 
                 {/* ═══════════ Результаты анализа (промпты, JSON, секции, цвета) ═══════════ */}
                 {result && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Pass 1 — промпт */}
                         <div className="bg-white border border-gray-200 rounded-lg p-4">
                             <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
@@ -318,14 +300,16 @@ export default function DebugPage() {
                                 Pass 1 — ответ модели (JSON)
                             </div>
                             <textarea
-                                value={JSON.stringify(result.pass1Parsed, null, 2)}
+                                value={typeof result.pass1Parsed === 'string'
+                                    ? result.pass1Parsed
+                                    : JSON.stringify(result.pass1Parsed, null, 2)}
                                 readOnly
                                 className="w-full h-[200px] font-mono text-[11px] leading-relaxed border border-gray-200 rounded-md p-2.5 resize-y bg-gray-50"
                             />
                         </div>
 
                         {/* Pass 2 — промпт (на всю ширину) */}
-                        <div className="bg-white border border-gray-200 rounded-lg p-4 col-span-2">
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 lg:col-span-2">
                             <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
                                 Pass 2 — промпт
                             </div>
@@ -357,7 +341,7 @@ export default function DebugPage() {
                                         </div>
                                         <div className="text-gray-500">{s.description}</div>
                                     </div>
-                                ))}
+                                )) || <div className="text-xs text-gray-400">Нет данных</div>}
                             </div>
                         </div>
 
@@ -366,7 +350,7 @@ export default function DebugPage() {
                             <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
                                 Цвета из Pass 1
                             </div>
-                            {result.pass1Parsed?.exact_colors && (
+                            {result.pass1Parsed?.exact_colors ? (
                                 <div className="flex flex-col gap-2">
                                     {Object.entries(result.pass1Parsed.exact_colors).map(([key, val]) => (
                                         <div key={key} className="flex items-center gap-2.5 text-[13px]">
@@ -379,6 +363,8 @@ export default function DebugPage() {
                                         </div>
                                     ))}
                                 </div>
+                            ) : (
+                                <div className="text-xs text-gray-400">Нет данных</div>
                             )}
                         </div>
                     </div>
