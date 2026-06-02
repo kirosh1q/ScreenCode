@@ -22,7 +22,7 @@
  * Продакшен (Vercel): URL бэкенда из переменной окружения VITE_API_URL,
  * например, https://screencode-backend.onrender.com
  */
-const BASE_URL = import.meta.env.VITE_API_URL || ''
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://screencode.onrender.com'
 
 /**
  * Формирует полный URL для API-запроса
