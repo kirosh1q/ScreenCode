@@ -1,6 +1,18 @@
 import { useState } from 'react'
 import { apiFetch } from '../api'
 
+/**
+ * Правая панель анализа и редактирования
+ *
+ * Отображает результаты структурного анализа из Pass 1
+ * и предоставляет чат-интерфейс для точечного редактирования кода.
+ *
+ * @param {Object} props
+ * @param {Object|null} props.result - Результат генерации (секции, цвета, файлы)
+ * @param {Function} props.onCodeUpdate - Обработчик обновления кода
+ * @param {string} props.apiKey - API-ключ OpenRouter
+ * @param {string} props.model - Имя модели для редактирования
+ */
 export default function RightPanel({ result, onCodeUpdate, apiKey, model }) {
     const [editText, setEditText] = useState('')
     const [messages, setMessages] = useState([
@@ -8,6 +20,12 @@ export default function RightPanel({ result, onCodeUpdate, apiKey, model }) {
     ])
     const [editLoading, setEditLoading] = useState(false)
 
+    /**
+     * Отправляет инструкцию по редактированию на сервер
+     *
+     * Передаёт текущий код (или все файлы) и текстовую инструкцию
+     * в языковую модель для внесения изменений.
+     */
     async function sendEdit() {
         const t = editText.trim()
         if (!t || !result || editLoading) return
@@ -45,13 +63,22 @@ export default function RightPanel({ result, onCodeUpdate, apiKey, model }) {
     }
 
     return (
-        <div style={{ background: '#fff', borderLeft: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0', flexShrink: 0, maxHeight: '45vh', overflowY: 'auto' }}>
-                <div style={label}>Анализ структуры</div>
+        <div className="bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+
+            {/* ═══════════ Секция: Анализ структуры ═══════════ */}
+            <section className="p-4 border-b border-gray-100 flex-shrink-0 max-h-[45vh] overflow-y-auto">
+                <h3 className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-2.5">
+                    Анализ структуры
+                </h3>
+
                 {!result ? (
-                    <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', padding: '8px 0' }}>Появится после анализа</div>
+                    // Заглушка до завершения генерации
+                    <div className="text-[11px] text-gray-400 text-center py-2">
+                        Появится после анализа
+                    </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div className="flex flex-col gap-1">
+                        {/* Список секций интерфейса */}
                         {result.sections?.map((s, i) => {
                             const name = typeof s === 'object' ? s.name : s
                             const type = typeof s === 'object' ? s.type : null
@@ -59,72 +86,119 @@ export default function RightPanel({ result, onCodeUpdate, apiKey, model }) {
                             const isDynamic = type === 'dynamic'
 
                             return (
-                                <div key={i} style={{ padding: '7px 10px', borderRadius: 6, background: '#fafafa', border: '1px solid #f0f0f0', marginBottom: 4 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
-                                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: isDynamic ? '#ef4444' : '#111', flexShrink: 0 }} />
-                                        <span style={{ flex: 1, color: '#374151' }}>{name}</span>
+                                <div
+                                    key={i}
+                                    className="px-2.5 py-1.5 rounded-md bg-gray-50 border border-gray-100 mb-1"
+                                >
+                                    <div className="flex items-center gap-2 text-[11px]">
+                                        {/* Индикатор типа секции */}
+                                        <div
+                                            className={`w-[7px] h-[7px] rounded-full flex-shrink-0 ${
+                                                isDynamic ? 'bg-red-500' : 'bg-gray-900'
+                                            }`}
+                                        />
+                                        <span className="flex-1 text-gray-700">{name}</span>
+
+                                        {/* Бейдж типа секции */}
                                         {type && (
-                                            <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: isDynamic ? '#fef2f2' : '#f3f4f6', color: isDynamic ? '#ef4444' : '#6b7280', border: `1px solid ${isDynamic ? '#fecaca' : '#e5e7eb'}` }}>
+                                            <span
+                                                className={`text-[9px] px-1.5 py-0.5 rounded border ${
+                                                    isDynamic
+                                                        ? 'bg-red-50 text-red-500 border-red-200'
+                                                        : 'bg-gray-100 text-gray-500 border-gray-200'
+                                                }`}
+                                            >
                                                 {isDynamic ? 'динамичный' : 'статичный'}
                                             </span>
                                         )}
                                     </div>
-                                    {desc && <div style={{ marginTop: 3, fontSize: 10, color: '#9ca3af', paddingLeft: 15 }}>{desc}</div>}
+
+                                    {/* Описание секции (если есть) */}
+                                    {desc && (
+                                        <div className="mt-0.5 text-[10px] text-gray-400 pl-[15px]">
+                                            {desc}
+                                        </div>
+                                    )}
                                 </div>
                             )
                         })}
+
+                        {/* Палитра цветов */}
                         {result.colors?.length > 0 && (
-                            <div style={{ marginTop: 8 }}>
-                                <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Цвета</div>
-                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            <div className="mt-2">
+                                <div className="text-[10px] text-gray-400 mb-1.5 uppercase tracking-wider">
+                                    Цвета
+                                </div>
+                                <div className="flex gap-1 flex-wrap">
                                     {result.colors.map(c => (
-                                        <div key={c} title={c} style={{ width: 20, height: 20, borderRadius: 4, background: c, border: '1px solid #e5e7eb' }} />
+                                        <div
+                                            key={c}
+                                            title={c}
+                                            className="w-5 h-5 rounded border border-gray-200"
+                                            style={{ backgroundColor: c }}
+                                        />
                                     ))}
                                 </div>
                             </div>
                         )}
                     </div>
                 )}
-            </div>
+            </section>
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, gap: 10, minHeight: 0, maxWidth: '100%' }}>
-                <div style={label}>Редактирование</div>
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
+            {/* ═══════════ Секция: Редактирование через чат ═══════════ */}
+            <section className="flex-1 flex flex-col p-4 gap-2.5 min-h-0 max-w-full">
+                <h3 className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-2.5">
+                    Редактирование
+                </h3>
+
+                {/* История сообщений чата */}
+                <div className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
                     {messages.map((m, i) => (
-                        <div key={i} style={{
-                            padding: '9px 11px', borderRadius: 7, fontSize: 11, lineHeight: 1.5,
-                            border: '1px solid #e5e7eb', maxWidth: '92%',
-                            background: m.type === 'u' ? '#f3f4f6' : '#fff',
-                            alignSelf: m.type === 'u' ? 'flex-end' : 'flex-start',
-                            color: m.type === 'u' ? '#111' : '#6b7280'
-                        }}>
+                        <div
+                            key={i}
+                            className={`px-2.5 py-2 rounded-md text-[11px] leading-relaxed border border-gray-200 max-w-[92%] ${
+                                m.type === 'u'
+                                    ? 'bg-gray-100 self-end text-gray-900'
+                                    : 'bg-white self-start text-gray-500'
+                            }`}
+                        >
                             {m.text}
                         </div>
                     ))}
+
+                    {/* Индикатор загрузки */}
                     {editLoading && (
-                        <div style={{ padding: '9px 11px', borderRadius: 7, fontSize: 11, border: '1px solid #e5e7eb', background: '#fff', color: '#9ca3af', alignSelf: 'flex-start' }}>
+                        <div className="px-2.5 py-2 rounded-md text-[11px] border border-gray-200 bg-white text-gray-400 self-start">
                             Применяю изменение...
                         </div>
                     )}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+
+                {/* Поле ввода и кнопка отправки */}
+                <div className="flex gap-1.5 flex-shrink-0">
                     <input
                         value={editText}
                         onChange={e => setEditText(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && sendEdit()}
                         placeholder={result ? 'Что изменить...' : 'Сначала сгенерируй код'}
                         disabled={!result || editLoading}
-                        style={{ flex: 1, background: '#f9f9f9', border: '1px solid #e5e7eb', borderRadius: 7, padding: '9px 12px', fontSize: 11, outline: 'none', fontFamily: 'inherit', opacity: !result ? 0.5 : 1 }}
+                        className={`flex-1 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-[11px] outline-none font-sans transition-opacity ${
+                            !result ? 'opacity-50' : 'opacity-100'
+                        }`}
                     />
                     <button
                         onClick={sendEdit}
                         disabled={!result || editLoading}
-                        style={{ background: !result || editLoading ? '#d1d5db' : '#111', border: 'none', borderRadius: 7, width: 36, color: '#fff', fontSize: 14, cursor: !result || editLoading ? 'not-allowed' : 'pointer' }}
-                    >↑</button>
+                        className={`border-none rounded-md w-9 text-white text-sm transition-colors ${
+                            !result || editLoading
+                                ? 'bg-gray-300 cursor-not-allowed'
+                                : 'bg-gray-900 hover:bg-gray-800 cursor-pointer'
+                        }`}
+                    >
+                        ↑
+                    </button>
                 </div>
-            </div>
+            </section>
         </div>
     )
 }
-
-const label = { fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 10 }

@@ -2,12 +2,27 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api'
 
+/**
+ * Страница аутентификации (вход / регистрация)
+ *
+ * Реализует:
+ * - Переключение между формами входа и регистрации
+ * - Валидацию и отправку данных на сервер
+ * - Восстановление пароля через email
+ * - Обработку ошибок и состояний загрузки
+ *
+ * @param {Object} props
+ * @param {Function} props.onLogin - Обработчик успешного входа (принимает token, user)
+ * @param {string} props.defaultTab - Начальная вкладка ('login' | 'register')
+ */
 export default function AuthPage({ onLogin, defaultTab = 'login' }) {
+    // ═══════════ Состояние формы входа/регистрации ═══════════
     const [isLogin, setIsLogin] = useState(defaultTab === 'login')
     const [form, setForm] = useState({ login: '', email: '', password: '' })
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
 
+    // ═══════════ Состояние восстановления пароля ═══════════
     const [showForgot, setShowForgot] = useState(false)
     const [forgotEmail, setForgotEmail] = useState('')
     const [forgotMsg, setForgotMsg] = useState(null)
@@ -15,11 +30,13 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
 
     const navigate = useNavigate()
 
+    /** Обновляет поле формы и сбрасывает ошибку */
     function handleChange(e) {
         setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
         setError(null)
     }
 
+    /** Отправляет форму входа или регистрации */
     async function handleSubmit() {
         setLoading(true)
         setError(null)
@@ -44,6 +61,7 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
         }
     }
 
+    /** Отправляет запрос на восстановление пароля */
     async function handleForgotSubmit() {
         if (!forgotEmail.trim()) return
         setForgotLoading(true)
@@ -64,24 +82,27 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
         }
     }
 
+    /** Открывает форму восстановления пароля */
     function openForgot() {
         setShowForgot(true)
         setForgotEmail('')
         setForgotMsg(null)
     }
 
+    /** Закрывает форму восстановления пароля */
     function closeForgot() {
         setShowForgot(false)
         setForgotMsg(null)
     }
 
+    // ═══════════ Режим: Восстановление пароля ═══════════
     if (showForgot) {
         return (
-            <div style={pageStyle}>
-                <div style={cardStyle}>
-                    <div style={logoStyle}>ScreenCode</div>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans">
+                <div className="bg-white rounded-xl border border-gray-200 p-8 w-[360px]">
+                    <div className="text-center mb-6 font-bold text-lg">ScreenCode</div>
 
-                    <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 16, lineHeight: 1.6 }}>
+                    <p className="text-xs text-gray-500 mb-4 leading-relaxed">
                         Введите email, привязанный к аккаунту — мы отправим ссылку для сброса пароля.
                     </p>
 
@@ -93,16 +114,16 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
                                 value={forgotEmail}
                                 onChange={e => setForgotEmail(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleForgotSubmit()}
-                                style={inputStyle}
+                                className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-[13px] outline-none font-sans mb-3"
                             />
                             <button
                                 onClick={handleForgotSubmit}
                                 disabled={forgotLoading || !forgotEmail.trim()}
-                                style={{
-                                    ...btnStyle,
-                                    background: (forgotLoading || !forgotEmail.trim()) ? '#d1d5db' : '#111',
-                                    cursor: (forgotLoading || !forgotEmail.trim()) ? 'not-allowed' : 'pointer'
-                                }}
+                                className={`w-full py-2.5 border-none rounded-lg text-[13px] font-medium text-white transition-colors ${
+                                    (forgotLoading || !forgotEmail.trim())
+                                        ? 'bg-gray-300 cursor-not-allowed'
+                                        : 'bg-gray-900 hover:bg-gray-800 cursor-pointer'
+                                }`}
                             >
                                 {forgotLoading ? 'Отправляю...' : 'Отправить ссылку'}
                             </button>
@@ -110,16 +131,19 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
                     )}
 
                     {forgotMsg && (
-                        <div style={{
-                            padding: '10px 12px', borderRadius: 6, fontSize: 12,
-                            background: forgotMsg.ok ? '#f0fdf4' : '#fef2f2',
-                            color: forgotMsg.ok ? '#16a34a' : '#ef4444'
-                        }}>
+                        <div className={`p-2.5 rounded-md text-xs ${
+                            forgotMsg.ok
+                                ? 'bg-green-50 text-green-600'
+                                : 'bg-red-50 text-red-500'
+                        }`}>
                             {forgotMsg.text}
                         </div>
                     )}
 
-                    <button onClick={closeForgot} style={linkBtnStyle}>
+                    <button
+                        onClick={closeForgot}
+                        className="mt-3.5 bg-transparent border-none text-gray-500 text-xs cursor-pointer w-full text-center py-1 hover:text-gray-700 transition-colors"
+                    >
                         ← Вернуться ко входу
                     </button>
                 </div>
@@ -127,26 +151,25 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
         )
     }
 
+    // ═══════════ Режим: Вход / Регистрация ═══════════
     return (
-        <div style={pageStyle}>
-            <div style={cardStyle}>
-                <div style={logoStyle}>ScreenCode</div>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans">
+            <div className="bg-white rounded-xl border border-gray-200 p-8 w-[360px]">
+                <div className="text-center mb-6 font-bold text-lg">ScreenCode</div>
 
-                <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3, marginBottom: 24, gap: 3 }}>
+                {/* Переключатель вкладок: Вход / Регистрация */}
+                <div className="flex bg-gray-100 rounded-lg p-0.5 mb-6 gap-0.5">
                     {[['login', 'Вход'], ['register', 'Регистрация']].map(([val, label]) => {
                         const active = (isLogin ? 'login' : 'register') === val
                         return (
                             <button
                                 key={val}
                                 onClick={() => { setIsLogin(val === 'login'); setError(null) }}
-                                style={{
-                                    flex: 1, padding: '7px 0', border: 'none', borderRadius: 6,
-                                    fontSize: 12, cursor: 'pointer',
-                                    background: active ? '#fff' : 'none',
-                                    color: active ? '#111' : '#6b7280',
-                                    fontWeight: active ? 500 : 400,
-                                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
-                                }}
+                                className={`flex-1 py-[7px] border-none rounded-md text-xs cursor-pointer transition-all ${
+                                    active
+                                        ? 'bg-white text-gray-900 font-medium shadow-sm'
+                                        : 'bg-transparent text-gray-500 font-normal hover:text-gray-700'
+                                }`}
                             >
                                 {label}
                             </button>
@@ -154,13 +177,14 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
                     })}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Форма входа/регистрации */}
+                <div className="flex flex-col gap-3">
                     <input
                         name="login"
                         placeholder="Логин"
                         value={form.login}
                         onChange={handleChange}
-                        style={inputStyle}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-[13px] outline-none font-sans"
                     />
                     {!isLogin && (
                         <input
@@ -169,7 +193,7 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
                             type="email"
                             value={form.email}
                             onChange={handleChange}
-                            style={inputStyle}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-[13px] outline-none font-sans"
                         />
                     )}
                     <input
@@ -179,63 +203,40 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
                         value={form.password}
                         onChange={handleChange}
                         onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                        style={inputStyle}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-md text-[13px] outline-none font-sans"
                     />
                 </div>
 
+                {/* Сообщение об ошибке */}
                 {error && (
-                    <div style={{ marginTop: 12, fontSize: 12, color: '#ef4444', background: '#fef2f2', padding: '8px 12px', borderRadius: 6 }}>
+                    <div className="mt-3 text-xs text-red-500 bg-red-50 py-2 px-3 rounded-md">
                         {error}
                     </div>
                 )}
 
+                {/* Кнопка отправки формы */}
                 <button
                     onClick={handleSubmit}
                     disabled={loading}
-                    style={{ ...btnStyle, marginTop: 20, background: loading ? '#d1d5db' : '#111', cursor: loading ? 'not-allowed' : 'pointer' }}
+                    className={`w-full py-2.5 border-none rounded-lg text-[13px] font-medium text-white mt-5 transition-colors ${
+                        loading
+                            ? 'bg-gray-300 cursor-not-allowed'
+                            : 'bg-gray-900 hover:bg-gray-800 cursor-pointer'
+                    }`}
                 >
                     {loading ? 'Загрузка...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
                 </button>
 
+                {/* Ссылка на восстановление пароля (только для входа) */}
                 {isLogin && (
-                    <button onClick={openForgot} style={linkBtnStyle}>
+                    <button
+                        onClick={openForgot}
+                        className="mt-3.5 bg-transparent border-none text-gray-500 text-xs cursor-pointer w-full text-center py-1 hover:text-gray-700 transition-colors"
+                    >
                         Забыли пароль?
                     </button>
                 )}
             </div>
         </div>
     )
-}
-
-const pageStyle = {
-    minHeight: '100vh', background: '#f8f9fa',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'Inter, sans-serif'
-}
-
-const cardStyle = {
-    background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
-    padding: '32px 36px', width: 360
-}
-
-const logoStyle = {
-    textAlign: 'center', marginBottom: 24,
-    fontWeight: 700, fontSize: 18
-}
-
-const inputStyle = {
-    padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 7,
-    fontSize: 13, outline: 'none', fontFamily: 'inherit',
-    width: '100%', boxSizing: 'border-box'
-}
-
-const btnStyle = {
-    width: '100%', padding: 11, border: 'none',
-    borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 500
-}
-
-const linkBtnStyle = {
-    marginTop: 14, background: 'none', border: 'none',
-    color: '#6b7280', fontSize: 12, cursor: 'pointer',
-    width: '100%', textAlign: 'center', padding: '4px 0'
 }

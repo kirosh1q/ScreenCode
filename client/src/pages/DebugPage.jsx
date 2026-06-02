@@ -1,17 +1,36 @@
 import { useState } from 'react'
-import { stacks } from '../components/LeftPanel.jsx'
+import { apiFetch } from '../api'
+import { stacks } from '../constants/constants.js'
 
+/**
+ * Отладочная страница для разработчиков
+ *
+ * Предоставляет инструменты для анализа работы конвейера генерации:
+ * - Ручной запуск с произвольным изображением и настройками
+ * - Просмотр последней генерации с сервера
+ * - Режим "Dry run" — проверка промптов без расходования токенов AI
+ * - Визуализация всех этапов предобработки (оригинал, Sharp, сетка, кропы)
+ * - Просмотр промптов Pass 1 / Pass 2 и ответа модели
+ *
+ * Доступна по маршруту /debug
+ */
 export default function DebugPage() {
+    // ═══════════ Состояние формы запуска ═══════════
     const [file, setFile] = useState(null)
     const [previewUrl, setPreviewUrl] = useState(null)
     const [selectedStack, setSelectedStack] = useState(stacks[0])
     const [selectedMode, setSelectedMode] = useState('copy')
     const [dryRun, setDryRun] = useState(true)
+
+    // ═══════════ Состояние результата и загрузки ═══════════
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState(null)
     const [error, setError] = useState(null)
-    const [debugMode, setDebugMode] = useState('manual') // 'manual' | 'last'
 
+    // ═══════════ Режим отображения: 'manual' (ручной) | 'last' (последняя) ═══════════
+    const [debugMode, setDebugMode] = useState('manual')
+
+    /** Обработчик выбора файла для отладки */
     function handleFile(e) {
         const f = e.target.files[0]
         if (!f) return
@@ -21,6 +40,10 @@ export default function DebugPage() {
         setError(null)
     }
 
+    /**
+     * Запускает отладочный конвейер вручную
+     * Отправляет изображение и настройки на /api/debug
+     */
     async function runDebug() {
         if (!file) return
         setLoading(true)
@@ -32,7 +55,8 @@ export default function DebugPage() {
             form.append('stack', selectedStack)
             form.append('mode', selectedMode)
             form.append('dryRun', dryRun.toString())
-            const res = await fetch('http://localhost:3001/api/debug', {
+
+            const res = await apiFetch('/api/debug', {
                 method: 'POST',
                 body: form
             })
@@ -47,11 +71,12 @@ export default function DebugPage() {
         }
     }
 
+    /** Загружает данные последней генерации с сервера (/api/last-debug) */
     async function loadLastGeneration() {
         setLoading(true)
         setError(null)
         try {
-            const res = await fetch('http://localhost:3001/api/last-debug')
+            const res = await apiFetch('/api/last-debug')
             const data = await res.json()
             if (!data.pass1Prompt) {
                 setError('Нет данных о последней генерации')
@@ -66,46 +91,81 @@ export default function DebugPage() {
         }
     }
 
-    // Показывать настройки только в ручном режиме
+    // ═══════════ Флаги условного рендеринга ═══════════
     const showSettings = debugMode === 'manual' && !result
     const showImages = result?.base64Grid || previewUrl
 
     return (
-        <div style={{ fontFamily: 'Inter, sans-serif', minHeight: '100vh', background: '#f8f9fa', padding: 24 }}>
-            <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+        <div className="font-sans min-h-screen bg-gray-50 p-6">
+            <div className="max-w-[1400px] mx-auto">
 
-                {/* Шапка */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                    <h1 style={{ fontSize: 18, fontWeight: 600 }}>Debug</h1>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => { setDebugMode('manual'); setResult(null) }}
-                                style={debugMode === 'manual' ? activeBtn : btn}>
+                {/* ═══════════ Шапка с переключателем режимов ═══════════ */}
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-lg font-semibold text-gray-900">Debug</h1>
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => { setDebugMode('manual'); setResult(null) }}
+                            className={`px-4 py-2 border rounded-md text-xs cursor-pointer transition-colors ${
+                                debugMode === 'manual'
+                                    ? 'bg-gray-900 text-white border-gray-900'
+                                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                            }`}
+                        >
                             Ручной запуск
                         </button>
-                        <button onClick={loadLastGeneration}
-                                style={debugMode === 'last' ? activeBtn : btn}>
+                        <button
+                            onClick={loadLastGeneration}
+                            className={`px-4 py-2 border rounded-md text-xs cursor-pointer transition-colors ${
+                                debugMode === 'last'
+                                    ? 'bg-gray-900 text-white border-gray-900'
+                                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                            }`}
+                        >
                             Последняя генерация
                         </button>
                     </div>
-                    <a href="/" style={{ fontSize: 12, color: '#6b7280' }}>← Назад</a>
+
+                    <a href="/" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                        ← Назад
+                    </a>
                 </div>
 
-                {/* Настройки — только в ручном режиме и если нет результата */}
+                {/* ═══════════ Настройки запуска (только в ручном режиме) ═══════════ */}
                 {showSettings && (
-                    <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'flex-end' }}>
+                    <div className="flex gap-3 mb-5 items-end">
                         <div>
-                            <div style={labelStyle}>Изображение</div>
-                            <input type="file" accept="image/*" onChange={handleFile} />
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                                Изображение
+                            </div>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFile}
+                                className="text-xs"
+                            />
                         </div>
                         <div>
-                            <div style={labelStyle}>Стек</div>
-                            <select value={selectedStack} onChange={e => setSelectedStack(e.target.value)} style={selectStyle}>
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                                Стек
+                            </div>
+                            <select
+                                value={selectedStack}
+                                onChange={e => setSelectedStack(e.target.value)}
+                                className="px-2.5 py-[7px] border border-gray-200 rounded-md text-[13px] font-sans bg-white"
+                            >
                                 {stacks.map(s => <option key={s}>{s}</option>)}
                             </select>
                         </div>
                         <div>
-                            <div style={labelStyle}>Режим</div>
-                            <select value={selectedMode} onChange={e => setSelectedMode(e.target.value)} style={selectStyle}>
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                                Режим
+                            </div>
+                            <select
+                                value={selectedMode}
+                                onChange={e => setSelectedMode(e.target.value)}
+                                className="px-2.5 py-[7px] border border-gray-200 rounded-md text-[13px] font-sans bg-white"
+                            >
                                 <option value="copy">Копия</option>
                                 <option value="template">Шаблон</option>
                             </select>
@@ -113,105 +173,209 @@ export default function DebugPage() {
                         <button
                             onClick={runDebug}
                             disabled={!file || loading}
-                            style={{ padding: '8px 20px', background: loading || !file ? '#d1d5db' : '#111', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, cursor: loading || !file ? 'not-allowed' : 'pointer' }}
+                            className={`px-5 py-2 border-none rounded-md text-[13px] font-medium text-white transition-colors ${
+                                (loading || !file)
+                                    ? 'bg-gray-300 cursor-not-allowed'
+                                    : 'bg-gray-900 hover:bg-gray-800 cursor-pointer'
+                            }`}
                         >
                             {loading ? 'Анализирую...' : 'Запустить'}
                         </button>
                     </div>
                 )}
 
-                {/* Dry run чекбокс */}
+                {/* ═══════════ Чекбокс Dry Run ═══════════ */}
                 {showSettings && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                        <input type="checkbox" id="dryRun" checked={dryRun} onChange={e => setDryRun(e.target.checked)} />
-                        <label htmlFor="dryRun" style={{ fontSize: 13, cursor: 'pointer' }}>Dry run (без AI)</label>
+                    <div className="flex items-center gap-2 mb-4">
+                        <input
+                            type="checkbox"
+                            id="dryRun"
+                            checked={dryRun}
+                            onChange={e => setDryRun(e.target.checked)}
+                            className="cursor-pointer"
+                        />
+                        <label htmlFor="dryRun" className="text-[13px] cursor-pointer text-gray-700">
+                            Dry run (без AI)
+                        </label>
                     </div>
                 )}
 
-                {error && <div style={{ background: '#fef2f2', color: '#ef4444', padding: '10px 14px', borderRadius: 7, marginBottom: 16, fontSize: 13 }}>{error}</div>}
+                {/* ═══════════ Сообщение об ошибке ═══════════ */}
+                {error && (
+                    <div className="bg-red-50 text-red-500 px-3.5 py-2.5 rounded-md mb-4 text-[13px]">
+                        {error}
+                    </div>
+                )}
 
-                {/* Изображения */}
+                {/* ═══════════ Сетка изображений (этапы предобработки) ═══════════ */}
                 {showImages && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                        {/* Оригинал */}
                         {previewUrl && (
-                            <div style={cardStyle}>
-                                <div style={cardLabel}>Оригинал</div>
-                                <img src={previewUrl} style={{ width: '100%', borderRadius: 6 }} />
+                            <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                    Оригинал
+                                </div>
+                                <img src={previewUrl} alt="Оригинал" className="w-full rounded-md" />
                             </div>
                         )}
+
+                        {/* Обработанное через Sharp */}
                         {result?.base64Image && (
-                            <div style={cardStyle}>
-                                <div style={cardLabel}>Обработанное (Sharp)</div>
-                                <img src={result.base64Image} style={{ width: '100%', borderRadius: 6 }} />
+                            <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                    Обработанное (Sharp)
+                                </div>
+                                <img
+                                    src={`data:image/png;base64,${result.base64Image}`}
+                                    alt="Обработанное"
+                                    className="w-full rounded-md"
+                                />
                             </div>
                         )}
+
+                        {/* С координатной сеткой */}
                         {result?.base64Grid && (
-                            <div style={cardStyle}>
-                                <div style={cardLabel}>С сеткой (Pass 1)</div>
-                                <img src={result.base64Grid} style={{ width: '100%', borderRadius: 6 }} />
+                            <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                    С сеткой (Pass 1)
+                                </div>
+                                <img
+                                    src={`data:image/png;base64,${result.base64Grid}`}
+                                    alt="С сеткой"
+                                    className="w-full rounded-md"
+                                />
                                 {result.gridInfo && (
-                                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6 }}>
+                                    <div className="text-[11px] text-gray-500 mt-1.5">
                                         Ячейка: {result.gridInfo.colW}×{result.gridInfo.rowH}px
                                     </div>
                                 )}
                             </div>
                         )}
+
+                        {/* Кроп верха */}
                         {result?.base64Top && (
-                            <div style={cardStyle}>
-                                <div style={cardLabel}>Кроп верха (0-30%)</div>
-                                <img src={result.base64Top} style={{ width: '100%', borderRadius: 6 }} />
+                            <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                    Кроп верха (0-30%)
+                                </div>
+                                <img
+                                    src={`data:image/png;base64,${result.base64Top}`}
+                                    alt="Кроп верха"
+                                    className="w-full rounded-md"
+                                />
                             </div>
                         )}
+
+                        {/* Кроп центра */}
                         {result?.base64Middle && (
-                            <div style={cardStyle}>
-                                <div style={cardLabel}>Кроп центра (30-60%)</div>
-                                <img src={result.base64Middle} style={{ width: '100%', borderRadius: 6 }} />
+                            <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                    Кроп центра (30-60%)
+                                </div>
+                                <img
+                                    src={`data:image/png;base64,${result.base64Middle}`}
+                                    alt="Кроп центра"
+                                    className="w-full rounded-md"
+                                />
                             </div>
                         )}
+
+                        {/* Кроп низа */}
                         {result?.base64Bottom && (
-                            <div style={cardStyle}>
-                                <div style={cardLabel}>Кроп низа (60-100%)</div>
-                                <img src={result.base64Bottom} style={{ width: '100%', borderRadius: 6 }} />
+                            <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                    Кроп низа (60-100%)
+                                </div>
+                                <img
+                                    src={`data:image/png;base64,${result.base64Bottom}`}
+                                    alt="Кроп низа"
+                                    className="w-full rounded-md"
+                                />
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* Результаты — промпты и анализ */}
+                {/* ═══════════ Результаты анализа (промпты, JSON, секции, цвета) ═══════════ */}
                 {result && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                        <div style={cardStyle}>
-                            <div style={cardLabel}>Pass 1 — промпт</div>
-                            <textarea value={result.pass1Prompt} readOnly style={textareaStyle} />
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Pass 1 — промпт */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                Pass 1 — промпт
+                            </div>
+                            <textarea
+                                value={result.pass1Prompt}
+                                readOnly
+                                className="w-full h-[200px] font-mono text-[11px] leading-relaxed border border-gray-200 rounded-md p-2.5 resize-y bg-gray-50"
+                            />
                         </div>
-                        <div style={cardStyle}>
-                            <div style={cardLabel}>Pass 1 — ответ модели (JSON)</div>
-                            <textarea value={JSON.stringify(result.pass1Parsed, null, 2)} readOnly style={textareaStyle} />
+
+                        {/* Pass 1 — ответ модели (JSON) */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                Pass 1 — ответ модели (JSON)
+                            </div>
+                            <textarea
+                                value={JSON.stringify(result.pass1Parsed, null, 2)}
+                                readOnly
+                                className="w-full h-[200px] font-mono text-[11px] leading-relaxed border border-gray-200 rounded-md p-2.5 resize-y bg-gray-50"
+                            />
                         </div>
-                        <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
-                            <div style={cardLabel}>Pass 2 — промпт</div>
-                            <textarea value={result.pass2Prompt} readOnly style={{ ...textareaStyle, height: 300 }} />
+
+                        {/* Pass 2 — промпт (на всю ширину) */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 col-span-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                Pass 2 — промпт
+                            </div>
+                            <textarea
+                                value={result.pass2Prompt}
+                                readOnly
+                                className="w-full h-[300px] font-mono text-[11px] leading-relaxed border border-gray-200 rounded-md p-2.5 resize-y bg-gray-50"
+                            />
                         </div>
-                        <div style={cardStyle}>
-                            <div style={cardLabel}>Секции из Pass 1</div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+                        {/* Секции из Pass 1 */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                Секции из Pass 1
+                            </div>
+                            <div className="flex flex-col gap-2">
                                 {result.pass1Parsed?.sections?.map((s, i) => (
-                                    <div key={i} style={{ padding: '8px 10px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 12 }}>
-                                        <div style={{ fontWeight: 500, marginBottom: 3 }}>{s.name} <span style={{ color: s.type === 'dynamic' ? '#ef4444' : '#6b7280', fontWeight: 400 }}>({s.type})</span></div>
-                                        <div style={{ color: '#6b7280' }}>{s.description}</div>
+                                    <div
+                                        key={i}
+                                        className="px-2.5 py-2 bg-gray-50 rounded-md border border-gray-200 text-xs"
+                                    >
+                                        <div className="font-medium mb-0.5">
+                                            {s.name}{' '}
+                                            <span className={`font-normal ${
+                                                s.type === 'dynamic' ? 'text-red-500' : 'text-gray-500'
+                                            }`}>
+                                                ({s.type})
+                                            </span>
+                                        </div>
+                                        <div className="text-gray-500">{s.description}</div>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                        <div style={cardStyle}>
-                            <div style={cardLabel}>Цвета из Pass 1</div>
+
+                        {/* Цвета из Pass 1 */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                                Цвета из Pass 1
+                            </div>
                             {result.pass1Parsed?.exact_colors && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div className="flex flex-col gap-2">
                                     {Object.entries(result.pass1Parsed.exact_colors).map(([key, val]) => (
-                                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-                                            <div style={{ width: 28, height: 28, borderRadius: 5, background: val, border: '1px solid #e5e7eb', flexShrink: 0 }} />
-                                            <span style={{ color: '#6b7280' }}>{key}:</span>
-                                            <span style={{ fontFamily: 'monospace' }}>{val}</span>
+                                        <div key={key} className="flex items-center gap-2.5 text-[13px]">
+                                            <div
+                                                className="w-7 h-7 rounded-md border border-gray-200 flex-shrink-0"
+                                                style={{ backgroundColor: val }}
+                                            />
+                                            <span className="text-gray-500">{key}:</span>
+                                            <span className="font-mono">{val}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -223,12 +387,3 @@ export default function DebugPage() {
         </div>
     )
 }
-
-// Стили
-const labelStyle = { fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 6 }
-const selectStyle = { padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', background: '#fff' }
-const cardStyle = { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }
-const cardLabel = { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 12 }
-const textareaStyle = { width: '100%', height: 200, fontFamily: 'Menlo, monospace', fontSize: 11, lineHeight: 1.6, border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, resize: 'vertical', background: '#fafafa', boxSizing: 'border-box' }
-const btn = { padding: '8px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#374151' }
-const activeBtn = { ...btn, background: '#111', color: '#fff', borderColor: '#111' }

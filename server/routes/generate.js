@@ -38,7 +38,12 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         console.log('  Повторяющиеся блоки:', hasRepeatingBlocks)
 
         const { stack, mode, apiKey, model } = req.body
-
+        console.log('=== ПОЛУЧЕННЫЕ ДАННЫЕ ===')
+        console.log('stack:', stack)
+        console.log('mode:', mode)
+        console.log('apiKey:', apiKey ? `${apiKey.substring(0, 10)}...` : 'undefined')
+        console.log('model:', model)
+        console.log('========================')
         if (!apiKey) {
             return res.status(400).json({ error: 'Не указан API ключ OpenRouter' })
         }
@@ -117,16 +122,17 @@ CRITICAL RULES:
 6. For repeating patterns, specify exact count if visible
 7. Include EVERY visible element in section descriptions`
 
+        console.log('🤖 Вызываю Pass 1 с моделью:', finalModel)
         const analysisRaw = await callAIJson([{
             role: 'user',
             content: [gridImageContent, { type: 'text', text: pass1PromptText }]
         }], apiKey, finalModel)
+        console.log('✅ Pass 1 завершен, длина ответа:', analysisRaw?.length)
 
         console.log('═══════════════════PASS 1: Анализ══════════════════════════\n')
         let analysis = { layout: '', sections: [], static_elements: [], dynamic_elements: [], exact_colors: {} }
         try {
             analysis = JSON.parse(analysisRaw)
-            const pass1Start = Date.now()
             console.log(' JSON распарсился успешно')
             console.log(` Секций найдено: ${analysis.sections?.length || 0}`)
             console.log(` Цветов найдено: ${Object.keys(analysis.exact_colors || {}).length}`)
@@ -275,16 +281,19 @@ ${stack.includes('React') && mode === 'template'
 - All components defined BEFORE App`
             : `- Return complete single file`}`
 
+        console.log('🤖 Вызываю Pass 2 с моделью:', finalModel)
         const generatedHTML = await callAICode([{
             role: 'user',
             content: [...imagesForPass2, { type: 'text', text: pass2PromptText }]
         }], apiKey, finalModel)
+        console.log('✅ Pass 2 завершен, длина ответа:', generatedHTML?.length)
 
         let fixedHTML = generatedHTML
             .replace(/src="\/(?!\/)[^"]+"/g, 'src="https://placehold.co/400x300/111111/39d353?text=Image"')
             .replace(/src='\/(?!'\/)[^']+'/g, "src='https://placehold.co/400x300/111111/39d353?text=Image'")
 
         console.log('Pass 2 готов. HTML длина:', generatedHTML.length)
+        console.log('Pass 2 готов. HTML длина:', fixedHTML.length)
         console.log('======================\n')
 
         const files = (() => {

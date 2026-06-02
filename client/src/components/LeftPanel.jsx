@@ -1,162 +1,211 @@
+import { stacks, models } from '../constants/constants.js'
 
-export const stacks = ['HTML + Tailwind', 'HTML + CSS', 'React + Tailwind']
-
+/**
+ * Левая панель настроек генерации
+ *
+ * Отвечает за:
+ * - Загрузку скриншота (drag-and-drop + file input)
+ * - Выбор технологического стека
+ * - Ввод API-ключа OpenRouter и имени модели
+ * - Переключение режима генерации (копия/шаблон)
+ * - Запуск процесса генерации
+ *
+ * @param {Object} props
+ * @param {string|null} props.previewUrl - URL предпросмотра загруженного изображения
+ * @param {Function} props.onFile - Обработчик выбора/удаления файла
+ * @param {boolean} props.loading - Флаг процесса генерации
+ * @param {string} props.selectedStack - Выбранный стек
+ * @param {Function} props.setSelectedStack - Сеттер стека
+ * @param {string} props.selectedMode - Выбранный режим
+ * @param {Function} props.setSelectedMode - Сеттер режима
+ * @param {Function} props.onGenerate - Обработчик запуска генерации
+ * @param {string|null} props.error - Текст ошибки (если есть)
+ * @param {Object|null} props.user - Данные авторизованного пользователя
+ * @param {string} props.apiKey - API-ключ OpenRouter
+ * @param {Function} props.setApiKey - Сеттер API-ключа
+ * @param {string} props.customModel - Имя модели
+ * @param {Function} props.setCustomModel - Сеттер модели
+ */
 export default function LeftPanel({
                                       previewUrl, onFile, loading,
                                       selectedStack, setSelectedStack,
                                       selectedMode, setSelectedMode,
                                       onGenerate, error, user,
-                                      apiKey, setApiKey, customModel, setCustomModel // ← ДОБАВИТЬ
+                                      apiKey, setApiKey, customModel, setCustomModel
                                   }) {
-    // УБРАТЬ локальное состояние:
-    // const [apiKey, setApiKey] = useState('')
-    // const [customModel, setCustomModel] = useState('qwen/qwen3.6-plus')
-
+    /** Обработчик выбора файла через input[type="file"] */
     function handleChange(e) {
-        const f = e.target.files[0]
-        if (f) onFile(f)
+        const file = e.target.files[0]
+        if (file) onFile(file)
     }
 
+    /** Обработчик drag-and-drop для зоны загрузки */
     function handleDrop(e) {
         e.preventDefault()
-        const f = e.dataTransfer.files[0]
-        if (f) onFile(f)
+        const file = e.dataTransfer.files[0]
+        if (file) onFile(file)
     }
 
+    /** Обработчик клика по кнопке "Сгенерировать" */
     function handleGenerateClick() {
         onGenerate(selectedStack, selectedMode, apiKey, customModel)
     }
 
+    /** Флаг блокировки кнопки генерации */
+    const isDisabled =
+        loading ||
+        !previewUrl ||
+        !user ||
+        !apiKey
+
     return (
-        <div style={{ background: '#fff', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-            {/* Скриншот */}
-            <div style={block}>
-                <div style={label}>Скриншот</div>
+        <div className="bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
+
+            {/* ═══════════ Блок: Загрузка скриншота ═══════════ */}
+            <section className="p-4 border-b border-gray-100">
+                <h3 className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-2.5">
+                    Скриншот
+                </h3>
+
                 {!user ? (
-                    <div style={{
-                        border: '1.5px dashed #d1d5db',
-                        borderRadius: 8,
-                        padding: '24px 16px',
-                        textAlign: 'center',
-                        background: '#fafafa',
-                        color: '#9ca3af'
-                    }}>
-                        <div style={{ fontSize: 24, marginBottom: 6 }}></div>
-                        <div style={{ fontSize: 12, fontWeight: 500 }}>Войдите в аккаунт</div>
-                        <div style={{ fontSize: 11, marginTop: 4 }}>чтобы загрузить скриншот</div>
+                    <div className="border-[1.5px] border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 text-gray-400">
+                        <div className="text-xs font-medium">Войдите в аккаунт</div>
+                        <div className="text-[11px] mt-1">чтобы загрузить скриншот</div>
                     </div>
                 ) : (
                     <>
                         {previewUrl ? (
-                            <img src={previewUrl} style={{ width: '100%', borderRadius: 8, maxHeight: 160, objectFit: 'cover', border: '1px solid #e5e7eb' }} />
+                            <img
+                                src={previewUrl}
+                                alt="Превью скриншота"
+                                className="w-full rounded-lg max-h-40 object-cover border border-gray-200"
+                            />
                         ) : (
+                            // Зона drag-and-drop
                             <label
-                                onDragOver={e => e.preventDefault()}
+                                onDragOver={(e) => e.preventDefault()}
                                 onDrop={handleDrop}
-                                style={{ display: 'block', border: '1.5px dashed #d1d5db', borderRadius: 8, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', background: '#fafafa' }}
+                                className="block border-[1.5px] border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
                             >
-                                <input type="file" accept="image/*" onChange={handleChange} style={{ display: 'none' }} />
-                                <div style={{ fontSize: 24, marginBottom: 6 }}></div>
-                                <div style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>Выбор файла</div>
-                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>PNG, JPG, WEBP</div>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleChange}
+                                    className="hidden"
+                                />
+                                <div className="text-xs text-gray-700 font-medium">Выбор файла</div>
+                                <div className="text-[11px] text-gray-400 mt-0.5">PNG, JPG, WEBP</div>
                             </label>
                         )}
+
                         {previewUrl && (
-                            <button onClick={() => onFile(null)} style={{ marginTop: 6, fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                            <button
+                                onClick={() => onFile(null)}
+                                className="mt-1.5 text-[11px] text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer"
+                            >
                                 ✕ убрать
                             </button>
                         )}
                     </>
                 )}
-            </div>
+            </section>
 
-            {/* Стек */}
-            <div style={block}>
-                <div style={label}>Стек</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {stacks.map(s => (
-                        <div key={s} onClick={() => setSelectedStack(s)} style={{
-                            border: `1.5px solid ${selectedStack === s ? '#111' : '#e5e7eb'}`,
-                            borderRadius: 7, padding: '8px 12px', cursor: 'pointer',
-                            background: selectedStack === s ? '#f9f9f9' : '#fff',
-                            fontSize: 12, fontWeight: selectedStack === s ? 500 : 400,
-                            color: selectedStack === s ? '#111' : '#374151'
-                        }}>
-                            {s}
-                        </div>
-                    ))}
+            {/* ═══════════ Блок: Выбор стека ═══════════ */}
+            <section className="p-4 border-b border-gray-100">
+                <h3 className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-2.5">
+                    Стек
+                </h3>
+                <div className="flex flex-col gap-1.5">
+                    {stacks.map((stack) => {
+                        const isSelected = selectedStack === stack
+                        return (
+                            <div
+                                key={stack}
+                                onClick={() => setSelectedStack(stack)}
+                                className={`border-[1.5px] rounded-md py-2 px-3 cursor-pointer text-xs transition-colors ${
+                                    isSelected
+                                        ? 'border-gray-900 bg-gray-50 text-gray-900 font-medium'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                {stack}
+                            </div>
+                        )
+                    })}
                 </div>
-            </div>
+            </section>
 
-            {/* API Ключ и Модель */}
-            <div style={block}>
-                <div style={label}>Настройки AI (OpenRouter)</div>
+            {/* ═══════════ Блок: Настройки AI (ключ + модель) ═══════════ */}
+            <section className="p-4 border-b border-gray-100">
+                <h3 className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-2.5">
+                    Настройки AI (OpenRouter)
+                </h3>
                 <input
                     type="text"
                     placeholder="sk-or-v1-..."
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 12, marginBottom: 8, outline: 'none', boxSizing: 'border-box' }}
+                    className="w-full px-3 py-2 border-[1.5px] border-gray-200 rounded-md text-xs mb-2 outline-none focus:border-gray-400 transition-colors"
                 />
                 <input
                     type="text"
                     placeholder="qwen/qwen3.6-plus"
                     value={customModel}
                     onChange={(e) => setCustomModel(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                    className="w-full px-3 py-2 border-[1.5px] border-gray-200 rounded-md text-xs outline-none focus:border-gray-400 transition-colors"
                 />
-                <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 6 }}>
+                <p className="text-[10px] text-gray-400 mt-1.5">
                     Ключ не сохраняется на сервере.
-                </div>
-            </div>
+                </p>
+            </section>
 
-            {/* Режим */}
-            <div style={block}>
-                <div style={label}>Режим</div>
-                <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 7, padding: 3, gap: 2 }}>
-                    {[['copy', 'Копия'], ['template', 'Шаблон']].map(([val, name]) => (
-                        <button key={val} onClick={() => setSelectedMode(val)} style={{
-                            flex: 1, padding: '6px 8px', border: 'none', borderRadius: 5,
-                            background: selectedMode === val ? '#fff' : 'none',
-                            color: selectedMode === val ? '#111' : '#6b7280',
-                            fontWeight: selectedMode === val ? 500 : 400,
-                            fontSize: 11, cursor: 'pointer',
-                            boxShadow: selectedMode === val ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
-                        }}>
-                            {name}
-                        </button>
-                    ))}
+            {/* ═══════════ Блок: Режим генерации ═══════════ */}
+            <section className="p-4 border-b border-gray-100">
+                <h3 className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-2.5">
+                    Режим
+                </h3>
+                <div className="flex bg-gray-100 rounded-md p-0.5 gap-0.5">
+                    {models.map(({ value, label }) => {
+                        const isSelected = selectedMode === value
+                        return (
+                            <button
+                                key={value}
+                                onClick={() => setSelectedMode(value)}
+                                className={`flex-1 py-1.5 px-2 border-none rounded text-[11px] cursor-pointer transition-all ${
+                                    isSelected
+                                        ? 'bg-white text-gray-900 font-medium shadow-sm'
+                                        : 'bg-transparent text-gray-500 font-normal hover:text-gray-700'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        )
+                    })}
                 </div>
-                <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 8, lineHeight: 1.5 }}>
-                    {selectedMode === 'copy'
-                        ? 'Точное воспроизведение.'
-                        : 'Компонентный шаблон с пропсами для подключения данных.'}
-                </div>
-            </div>
+                <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                    {models.find((m) => m.value === selectedMode)?.description}
+                </p>
+            </section>
 
-            {/* Кнопка */}
-            <div style={{ padding: 16, marginTop: 'auto' }}>
+            {/* ═══════════ Блок: Кнопка генерации ═══════════ */}
+            <section className="p-4 mt-auto">
                 {error && (
-                    <div style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', padding: '8px 12px', borderRadius: 6, marginBottom: 10 }}>
+                    <div className="text-[11px] text-red-500 bg-red-50 py-2 px-3 rounded-md mb-2.5">
                         {error}
                     </div>
                 )}
                 <button
                     onClick={handleGenerateClick}
-                    disabled={loading || !previewUrl || !user || !apiKey}
-                    style={{
-                        width: '100%', padding: 11,
-                        background: (loading || !previewUrl || !user || !apiKey) ? '#d1d5db' : '#111',
-                        border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 500,
-                        cursor: (loading || !previewUrl || !user || !apiKey) ? 'not-allowed' : 'pointer'
-                    }}
+                    disabled={isDisabled}
+                    className={`w-full py-2.5 border-none rounded-lg text-[13px] font-medium transition-colors ${
+                        isDisabled
+                            ? 'bg-gray-300 text-white cursor-not-allowed'
+                            : 'bg-gray-900 text-white hover:bg-gray-800 cursor-pointer'
+                    }`}
                 >
                     {loading ? 'Генерирую...' : 'Сгенерировать'}
                 </button>
-            </div>
+            </section>
         </div>
     )
 }
-
-const block = { padding: 16, borderBottom: '1px solid #f0f0f0' }
-const label = { fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 10 }
