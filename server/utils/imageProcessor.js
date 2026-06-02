@@ -3,9 +3,9 @@ const sharp = require('sharp')
 async function processImageForAI(buffer) {
     const processed = await sharp(buffer)
         .resize({ width: 1280, withoutEnlargement: true })
-        .sharpen({ sigma: 0.8 })
+        .sharpen({ sigma: 1.2 })
         .normalize()
-        .modulate({ saturation: 1.1 })
+        .modulate({ saturation: 1.5 })
         .png({ quality: 92, compressionLevel: 6 })
         .toBuffer()
     return { buffer: processed, mimeType: 'image/png' }
@@ -30,9 +30,15 @@ async function cropSection(buffer, info, fromPercent, heightPercent) {
     return cropped
 }
 
-async function createMultiCrop(buffer, info) {
-    const height = info.height
-    const width = info.width
+async function createMultiCrop(buffer) {
+    const { width, height } = await sharp(buffer).metadata()
+
+    const MIN_HEIGHT_FOR_CROPS = 600
+
+    if (height < MIN_HEIGHT_FOR_CROPS) {
+        console.log('Изображение слишком низкое, кропы пропускаем')
+        return { top: null, middle: null, bottom: null }
+    }
 
     const topHeight = Math.floor(height * 0.30)
     const middleHeight = Math.floor(height * 0.30)
@@ -61,27 +67,38 @@ async function createMultiCrop(buffer, info) {
 
 const { createCanvas, loadImage } = require('canvas')
 
-async function addGridOverlay(buffer, cols = 12, rows = 9) {
+async function addGridOverlay(buffer, options = {}) {
     const { width, height } = await sharp(buffer).metadata()
+
+    // Параметры по умолчанию (можно переопределить)
+    const {
+        targetCellSize = 120,    // Желаемый размер ячейки в пикселях
+        minCols = 8, maxCols = 16,  // Диапазон колонок
+        minRows = 5, maxRows = 12   // Диапазон строк
+    } = options
+
+    // 1. Вычисляем количество колонок и строк динамически
+    const cols = Math.min(maxCols, Math.max(minCols, Math.round(width / targetCellSize)))
+    const rows = Math.min(maxRows, Math.max(minRows, Math.round(height / targetCellSize)))
 
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
-    // Загружаем изображение на canvas
     const img = await loadImage(buffer)
     ctx.drawImage(img, 0, 0)
 
     const colW = width / cols
     const rowH = height / rows
 
+    // Стили сетки
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'
     ctx.lineWidth = 1
-    ctx.font = `bold ${Math.floor(colW * 0.18)}px Arial`
+    ctx.font = `bold ${Math.max(10, Math.floor(colW * 0.15))}px Arial`
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
     ctx.shadowColor = 'rgba(0,0,0,0.8)'
     ctx.shadowBlur = 3
 
-    // Вертикальные линии + буквы колонок
+    // Вертикальные линии + буквы (A, B, C...)
     for (let c = 0; c <= cols; c++) {
         const x = Math.round(c * colW)
         ctx.beginPath()
@@ -89,12 +106,12 @@ async function addGridOverlay(buffer, cols = 12, rows = 9) {
         ctx.lineTo(x, height)
         ctx.stroke()
         if (c < cols) {
-            const letter = String.fromCharCode(65 + c) // A-L
-            ctx.fillText(letter, x + 4, 16)
+            const letter = String.fromCharCode(65 + c)
+            ctx.fillText(letter, x + 4, Math.min(20, rowH * 0.3))
         }
     }
 
-    // Горизонтальные линии + цифры строк
+    // Горизонтальные линии + цифры (1, 2, 3...)
     for (let r = 0; r <= rows; r++) {
         const y = Math.round(r * rowH)
         ctx.beginPath()
@@ -102,17 +119,21 @@ async function addGridOverlay(buffer, cols = 12, rows = 9) {
         ctx.lineTo(width, y)
         ctx.stroke()
         if (r < rows) {
-            ctx.fillText(String(r + 1), 4, y + 16)
+            ctx.fillText(String(r + 1), 4, y + Math.min(20, rowH * 0.3))
         }
     }
 
     const result = canvas.toBuffer('image/png')
+
+    // Возвращаем метаданные для промпта
     return {
         buffer: result,
         colW: Math.round(colW),
         rowH: Math.round(rowH),
         cols,
-        rows
+        rows,
+        // Удобная справка для промпта
+        gridSpec: `grid ${cols}×${rows}, cell ~${Math.round(colW)}×${Math.round(rowH)}px`
     }
 }
 

@@ -26,6 +26,8 @@ async function callAIJson(messages, timeout = 60000) {
     }
 
     let text = response.data.choices[0].message.content
+        || response.data.choices[0].message.reasoning
+        || ''
 
     if (!text) {
         console.log('Полный ответ от API:', JSON.stringify(response.data, null, 2))

@@ -21,13 +21,17 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         const { buffer: processedBuffer, mimeType } = await processImageForAI(req.file.buffer)
         const base64Image = processedBuffer.toString('base64')
 
-        const { buffer: gridBuffer, colW, rowH } = await addGridOverlay(processedBuffer)
+        const gridResult = await addGridOverlay(processedBuffer, {
+            targetCellSize: 120  // Можно настроить под свои нужды
+        })
+        const { buffer: gridBuffer, colW, rowH, cols, rows, gridSpec } = gridResult
         const base64GridImage = gridBuffer.toString('base64')
         const gridImageContent = {
             type: 'image_url',
             image_url: { url: `data:image/png;base64,${base64GridImage}` }
         }
         const { rawPixels, info: imgInfo } = await processImageForAnalysis(req.file.buffer)
+
         const hasRepeatingBlocks = detectRepeatingBlocks(rawPixels, imgInfo.width, imgInfo.height)
 
         console.log('Программный анализ:')
@@ -49,9 +53,9 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
 // Сохраняем промпт для отладки
         const pass1PromptText = `Analyze this UI screenshot in detail.
 The image has a coordinate grid overlay:
-Columns: A to L (left to right), each column = ${colW}px wide
-Rows: 1 to 9 (top to bottom), each row = ${rowH}px tall
-Use grid coordinates to describe element positions precisely.
+Columns: A to ${String.fromCharCode(64 + cols)} (left→right), each column ≈ ${colW}px wide
+Rows: 1 to ${rows} (top→bottom), each row ≈ ${rowH}px tall
+Grid spec: ${gridSpec}
 Return ONLY valid JSON, no markdown. Follow this structure EXACTLY:
 {
   "layout": "one sentence describing the overall page structure",
@@ -165,28 +169,58 @@ CRITICAL RULES:
             .join('\n') || ''
 
         const modeInstruction = mode === 'copy'
-            ? copyPrompt()
-            : templatePrompt(hasRepeatingBlocks, analysis)
+            ? copyPrompt( stack, hasRepeatingBlocks)
+            : templatePrompt(hasRepeatingBlocks, analysis, stack)
 
-        const { top, middle, bottom } = await createMultiCrop(req.file.buffer, imgInfo)
+        const crops = await createMultiCrop(req.file.buffer)
 
-        const topImageContent = {
-            type: 'image_url',
-            image_url: { url: `data:image/png;base64,${top.toString('base64')}` }
-        }
-        const middleImageContent = {
-            type: 'image_url',
-            image_url: { url: `data:image/png;base64,${middle.toString('base64')}` }
-        }
-        const bottomImageContent = {
-            type: 'image_url',
-            image_url: { url: `data:image/png;base64,${bottom.toString('base64')}` }
+// Формируем массив изображений для Pass 2
+        const imagesForPass2 = [gridImageContent] // Всегда добавляем изображение с сеткой
+
+// Если кропы есть (не null), добавляем их
+        if (crops.top && crops.middle && crops.bottom) {
+            const topImageContent = {
+                type: 'image_url',
+                image_url: { url: `data:image/png;base64,${crops.top.toString('base64')}` }
+            }
+            const middleImageContent = {
+                type: 'image_url',
+                image_url: { url: `data:image/png;base64,${crops.middle.toString('base64')}` }
+            }
+            const bottomImageContent = {
+                type: 'image_url',
+                image_url: { url: `data:image/png;base64,${crops.bottom.toString('base64')}` }
+            }
+
+            imagesForPass2.push(topImageContent, middleImageContent, bottomImageContent)
+
+            // Для отладки сохраняем base64 кропов
+            lastGenerationDebug.images = {
+                base64Grid: base64GridImage,
+                base64Image,
+                base64Top: crops.top.toString('base64'),
+                base64Middle: crops.middle.toString('base64'),
+                base64Bottom: crops.bottom.toString('base64')
+            }
+        } else {
+            // Если кропов нет (широкое изображение), используем только оригинал + сетку
+            console.log('Широкое изображение, используем только оригинал с сеткой')
+
+            // Для отладки
+            lastGenerationDebug.images = {
+                base64Grid: base64GridImage,
+                base64Image,
+                base64Top: null,
+                base64Middle: null,
+                base64Bottom: null
+            }
         }
 
 // Сохраняем промпт для отладки
-        const pass2PromptText = `Generate code for this UI screenshot.
+        const pass2PromptText = `
+Generate code for this UI screenshot.
 You are receiving 4 images of the SAME page:
-- Image 1: full screenshot WITH coordinate grid (columns A-L, rows 1-9, each cell = ${colW}x${rowH}px)
+- Image 1: full screenshot WITH coordinate grid (columns A-${String.fromCharCode(64 + cols)}, rows 1-${rows}, each cell = ${colW}x${rowH}px)
 - Image 2: top section (0-30% of page height) — header details
 - Image 3: middle section (30-60% of page height) — main content
 - Image 4: bottom section (60-100% of page height) — footer, panels
@@ -252,24 +286,27 @@ ${stack.includes('React') && mode === 'template'
         const generatedHTML = await callAICode([{
             role: 'user',
             content: [
-                gridImageContent,
-                topImageContent,
-                middleImageContent,
-                bottomImageContent,
+                ...imagesForPass2,
                 { type: 'text', text: pass2PromptText }
             ]
         }])
+
+        let fixedHTML = generatedHTML
+            .replace(/src="\/(?!\/)[^"]+"/g, 'src="https://placehold.co/400x300/111111/39d353?text=Image"')
+            .replace(/src='\/(?!'\/)[^']+'/g, "src='https://placehold.co/400x300/111111/39d353?text=Image'")
 
         console.log('Pass 2 готов. HTML длина:', generatedHTML.length)
         console.log('======================\n')
 
         const files = (() => {
-            if (stack.includes('React') && mode === 'template') {
-                const parsed = parseFiles(generatedHTML)
-                console.log('Найдено файлов:', parsed.map(f => f.name).join(', '))
-                if (parsed.length > 0) return parsed
+            if (stack.includes('React')) {
+                const parsed = parseFiles(fixedHTML)
+                if (parsed.length > 0) {
+                    console.log('Найдено файлов:', parsed.map(f => f.name).join(', '))
+                    return parsed
+                }
             }
-            return [{ name: stack.includes('React') ? 'App.jsx' : 'index.html', content: generatedHTML }]
+            return [{ name: stack.includes('React') ? 'App.jsx' : 'index.html', content: fixedHTML }]
         })()
 
         // Сохраняем для отладки
@@ -280,9 +317,9 @@ ${stack.includes('React') && mode === 'template'
         lastGenerationDebug.images = {
             base64Grid: base64GridImage,
             base64Image,
-            base64Top: top.toString('base64'),
-            base64Middle: middle.toString('base64'),
-            base64Bottom: bottom.toString('base64')
+            base64Top: crops.top?.toString('base64') || null,
+            base64Middle: crops.middle?.toString('base64') || null,
+            base64Bottom: crops.bottom?.toString('base64') || null
         }
 
         res.json({
@@ -295,7 +332,7 @@ ${stack.includes('React') && mode === 'template'
                 colors: analysis.exact_colors
                     ? Object.values(analysis.exact_colors).filter(Boolean)
                     : [],
-                generatedHTML,
+                fixedHTML,
                 files
             }
         })

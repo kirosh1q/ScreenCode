@@ -9,6 +9,9 @@ import AuthPage from './pages/AuthPage.jsx'
 import HistoryDrawer from './components/HistoryDrawer.jsx'
 import AccountPage from './pages/AccountPage.jsx'
 
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
+import ConfirmEmailPage from './pages/ConfirmEmailPage.jsx'
+
 import DebugPage from './pages/DebugPage.jsx' //test
 
 export default function App() {
@@ -50,8 +53,12 @@ export default function App() {
             } />
             <Route path="/login" element={<AuthPage onLogin={login} defaultTab="login" />} />
             <Route path="/register" element={<AuthPage onLogin={login} defaultTab="register" />} />
+
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+
             <Route path="/" element={
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Inter, sans-serif', background: '#f8f9fa' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Inter, sans-serif', background: '#f8f9fa', overflowX: 'hidden' }}>
 
                     <header style={{ height: 52, background: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 15 }}> ScreenCode</div>

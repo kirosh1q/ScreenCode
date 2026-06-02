@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const HISTORY_LIMIT = 5 // ← меняй здесь
+const HISTORY_LIMIT = 10 // ← меняй здесь
 
 export default function HistoryDrawer({ open, onClose, onRestore }) {
     const [generations, setGenerations] = useState([])

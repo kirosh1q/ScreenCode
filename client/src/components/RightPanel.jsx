@@ -86,7 +86,7 @@ export default function RightPanel({ result, onCodeUpdate }) {
                 )}
             </div>
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, gap: 10, minHeight: 0 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, gap: 10, minHeight: 0, maxWidth: '100%'}}>
                 <div style={label}>Редактирование</div>
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
                     {messages.map((m, i) => (

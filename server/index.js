@@ -17,7 +17,7 @@ app.get('/api/models', (req, res) => {
     // Возвращаем список доступных моделей
     res.json({
         models: [
-            { id: process.env.AI_MODEL || 'qwen/qwen3.5-35b-a3b', name: 'Qwen 3.5' },
+            { id: process.env.AI_MODEL || 'qwen/qwen3.6-plus', name: 'Qwen 3.6' },
             //{ id: 'openai/gpt-4o', name: 'GPT-4o' },
             //{ id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5' }
         ]
