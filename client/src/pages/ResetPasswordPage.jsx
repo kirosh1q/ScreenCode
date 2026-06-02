@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import { apiFetch } from '../api'
 
 export default function ResetPasswordPage() {
     const [params] = useSearchParams()
@@ -13,7 +14,7 @@ export default function ResetPasswordPage() {
     async function submit() {
         if (password !== confirm) return setMsg({ error: true, text: 'Пароли не совпадают' })
         setLoading(true)
-        const res = await fetch('http://localhost:3001/api/auth/reset-password', {
+        const res = await apiFetch('/api/auth/reset-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, newPassword: password })
@@ -44,4 +45,5 @@ export default function ResetPasswordPage() {
         </div>
     )
 }
+
 const inputStyle = { width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', boxSizing: 'border-box' }

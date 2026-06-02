@@ -2,11 +2,66 @@ const express = require('express')
 const router = express.Router()
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
+const { Resend } = require('resend')
 const User = require('../models/User')
 const authMiddleware = require('../middleware/authMiddleware')
-const { Resend } = require('resend')
-const crypto = require('crypto')
 
+const resend = new Resend(process.env.RESEND_API_KEY)
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+
+// Временное хранилище токенов (в памяти — для прода заменить на Redis)
+const resetTokens = new Map()       // token -> { userId, expires }
+const emailChangeTokens = new Map() // token -> { userId, newEmail, expires }
+
+// ── Регистрация ──────────────────────────────────────────────
+router.post('/register', async (req, res) => {
+    try {
+        const { login, email, password } = req.body
+        if (!login || !email || !password)
+            return res.status(400).json({ error: 'Все поля обязательны' })
+
+        const exists = await User.findOne({ $or: [{ email }, { login }] })
+        if (exists) return res.status(400).json({ error: 'Email или логин уже используется' })
+
+        const hashed = await bcrypt.hash(password, 10)
+        const user = await User.create({ login, email, password: hashed })
+
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+        res.json({ token, user: { id: user._id, login: user.login, email: user.email } })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// ── Вход ─────────────────────────────────────────────────────
+router.post('/login', async (req, res) => {
+    try {
+        const { login, password } = req.body
+        const user = await User.findOne({ login })
+        if (!user) return res.status(400).json({ error: 'Неверный логин или пароль' })
+
+        const valid = await bcrypt.compare(password, user.password)
+        if (!valid) return res.status(400).json({ error: 'Неверный логин или пароль' })
+
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+        res.json({ token, user: { id: user._id, login: user.login, email: user.email } })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// ── Текущий пользователь ─────────────────────────────────────
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select('-password')
+        res.json(user)
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// ── Смена пароля (авторизованный) ───────────────────────────
 router.post('/change-password', authMiddleware, async (req, res) => {
     try {
         const { oldPassword, newPassword } = req.body
@@ -27,57 +82,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     }
 })
 
-router.post('/register', async (req, res) => {
-    try {
-        const { login, email, password } = req.body
-        if (!login || !email || !password)
-            return res.status(400).json({ error: 'Все поля обязательны' })
-
-        const exists = await User.findOne({ $or: [{ email }, { login }] })
-        if (exists) return res.status(400).json({ error: 'Email или логин уже используется' })
-
-        const hashed = await bcrypt.hash(password, 10)
-        const user = await User.create({ login, email, password: hashed })
-
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
-        res.json({ token, user: { id: user._id, login: user.login, email: user.email } })
-    } catch (error) {
-        res.status(500).json({ error: error.message })
-    }
-})
-
-router.post('/login', async (req, res) => {
-    try {
-        const { login, password } = req.body
-        const user = await User.findOne({ login })
-        if (!user) return res.status(400).json({ error: 'Неверный логин или пароль' })
-
-        const valid = await bcrypt.compare(password, user.password)
-        if (!valid) return res.status(400).json({ error: 'Неверный логин или пароль' })
-
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
-        res.json({ token, user: { id: user._id, login: user.login, email: user.email } })
-    } catch (error) {
-        res.status(500).json({ error: error.message })
-    }
-})
-
-router.get('/me', authMiddleware, async (req, res) => {
-    try {
-        const user = await User.findById(req.userId).select('-password')
-        res.json(user)
-    } catch (error) {
-        res.status(500).json({ error: error.message })
-    }
-})
-
-
-const resend = new Resend(process.env.RESEND_API_KEY)
-
-// Временное хранилище токенов (для диплома достаточно, в проде — Redis)
-const resetTokens = new Map() // token -> { userId, expires }
-
-// Запрос сброса пароля
+// ── Сброс пароля: запрос письма ──────────────────────────────
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body
@@ -90,7 +95,7 @@ router.post('/forgot-password', async (req, res) => {
             expires: Date.now() + 1000 * 60 * 30 // 30 минут
         })
 
-        const link = `http://localhost:5173/reset-password?token=${token}`
+        const link = `${FRONTEND_URL}/reset-password?token=${token}`
 
         await resend.emails.send({
             from: 'ScreenCode <onboarding@resend.dev>',
@@ -107,7 +112,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 })
 
-// Сброс пароля по токену
+// ── Сброс пароля: применение токена ─────────────────────────
 router.post('/reset-password', async (req, res) => {
     try {
         const { token, newPassword } = req.body
@@ -128,9 +133,7 @@ router.post('/reset-password', async (req, res) => {
     }
 })
 
-// Смена email (с подтверждением на новый адрес)
-const emailChangeTokens = new Map()
-
+// ── Смена email: запрос письма ───────────────────────────────
 router.post('/request-email-change', authMiddleware, async (req, res) => {
     try {
         const { newEmail } = req.body
@@ -141,10 +144,10 @@ router.post('/request-email-change', authMiddleware, async (req, res) => {
         emailChangeTokens.set(token, {
             userId: req.userId,
             newEmail,
-            expires: Date.now() + 1000 * 60 * 30
+            expires: Date.now() + 1000 * 60 * 30 // 30 минут
         })
 
-        const link = `http://localhost:5173/confirm-email?token=${token}`
+        const link = `${FRONTEND_URL}/confirm-email?token=${token}`
 
         await resend.emails.send({
             from: 'ScreenCode <onboarding@resend.dev>',
@@ -161,6 +164,7 @@ router.post('/request-email-change', authMiddleware, async (req, res) => {
     }
 })
 
+// ── Смена email: подтверждение по токену ────────────────────
 router.post('/confirm-email-change', async (req, res) => {
     try {
         const { token } = req.body
@@ -177,4 +181,5 @@ router.post('/confirm-email-change', async (req, res) => {
         res.status(500).json({ error: error.message })
     }
 })
+
 module.exports = router

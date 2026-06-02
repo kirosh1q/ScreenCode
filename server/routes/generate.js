@@ -22,7 +22,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         const base64Image = processedBuffer.toString('base64')
 
         const gridResult = await addGridOverlay(processedBuffer, {
-            targetCellSize: 120  // Можно настроить под свои нужды
+            targetCellSize: 120
         })
         const { buffer: gridBuffer, colW, rowH, cols, rows, gridSpec } = gridResult
         const base64GridImage = gridBuffer.toString('base64')
@@ -37,10 +37,16 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         console.log('Программный анализ:')
         console.log('  Повторяющиеся блоки:', hasRepeatingBlocks)
 
-        const stack = req.body.stack || 'HTML + Tailwind'
-        const mode = req.body.mode || 'copy'
+        const { stack, mode, apiKey, model } = req.body
+
+        if (!apiKey) {
+            return res.status(400).json({ error: 'Не указан API ключ OpenRouter' })
+        }
+
+        const finalModel = model || 'qwen/qwen3.6-plus'
+
         console.log('\n=== НОВАЯ ГЕНЕРАЦИЯ ===')
-        console.log('Стек:', stack, '| Mode:', mode)
+        console.log('Стек:', stack, '| Mode:', mode, '| Model:', finalModel)
 
         const imageContent = {
             type: 'image_url',
@@ -50,7 +56,6 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         // ── PASS 1: анализ структуры ──────────────────────────
         console.log('Pass 1: анализ структуры...')
 
-// Сохраняем промпт для отладки
         const pass1PromptText = `Analyze this UI screenshot in detail.
 The image has a coordinate grid overlay:
 Columns: A to ${String.fromCharCode(64 + cols)} (left→right), each column ≈ ${colW}px wide
@@ -114,11 +119,9 @@ CRITICAL RULES:
 
         const analysisRaw = await callAIJson([{
             role: 'user',
-            content: [
-                gridImageContent,
-                { type: 'text', text: pass1PromptText }
-            ]
-        }])
+            content: [gridImageContent, { type: 'text', text: pass1PromptText }]
+        }], apiKey, finalModel)
+
         console.log('═══════════════════PASS 1: Анализ══════════════════════════\n')
         let analysis = { layout: '', sections: [], static_elements: [], dynamic_elements: [], exact_colors: {} }
         try {
@@ -128,7 +131,6 @@ CRITICAL RULES:
             console.log(` Секций найдено: ${analysis.sections?.length || 0}`)
             console.log(` Цветов найдено: ${Object.keys(analysis.exact_colors || {}).length}`)
 
-            // Детали по секциям
             if (analysis.sections?.length > 0) {
                 console.log('\n Секции:')
                 analysis.sections.forEach((s, i) => {
@@ -136,14 +138,12 @@ CRITICAL RULES:
                 })
             }
 
-            // Статичные vs Динамичные
             console.log('\n Статичные элементы:')
             console.log(`   ${analysis.static_elements?.slice(0, 5).join(', ') || 'не указаны'}${analysis.static_elements?.length > 5 ? '...' : ''}`)
 
             console.log('\n Динамичные элементы:')
             console.log(`   ${analysis.dynamic_elements?.slice(0, 5).join(', ') || 'не указаны'}${analysis.dynamic_elements?.length > 5 ? '...' : ''}`)
 
-            // Цвета
             if (analysis.exact_colors) {
                 console.log('\n Цветовая палитра:')
                 Object.entries(analysis.exact_colors).forEach(([key, val]) => {
@@ -159,8 +159,6 @@ CRITICAL RULES:
         }
         console.log('═══════════════════════════════════════════════════════════\n')
 
-
-
         // ── PASS 2: генерация кода ────────────────────────────
         console.log('\nPass 2: генерация кода...')
 
@@ -169,15 +167,13 @@ CRITICAL RULES:
             .join('\n') || ''
 
         const modeInstruction = mode === 'copy'
-            ? copyPrompt( stack, hasRepeatingBlocks)
+            ? copyPrompt(stack, hasRepeatingBlocks)
             : templatePrompt(hasRepeatingBlocks, analysis, stack)
 
         const crops = await createMultiCrop(req.file.buffer)
 
-// Формируем массив изображений для Pass 2
-        const imagesForPass2 = [gridImageContent] // Всегда добавляем изображение с сеткой
+        const imagesForPass2 = [gridImageContent]
 
-// Если кропы есть (не null), добавляем их
         if (crops.top && crops.middle && crops.bottom) {
             const topImageContent = {
                 type: 'image_url',
@@ -194,7 +190,6 @@ CRITICAL RULES:
 
             imagesForPass2.push(topImageContent, middleImageContent, bottomImageContent)
 
-            // Для отладки сохраняем base64 кропов
             lastGenerationDebug.images = {
                 base64Grid: base64GridImage,
                 base64Image,
@@ -203,10 +198,8 @@ CRITICAL RULES:
                 base64Bottom: crops.bottom.toString('base64')
             }
         } else {
-            // Если кропов нет (широкое изображение), используем только оригинал + сетку
             console.log('Широкое изображение, используем только оригинал с сеткой')
 
-            // Для отладки
             lastGenerationDebug.images = {
                 base64Grid: base64GridImage,
                 base64Image,
@@ -216,7 +209,6 @@ CRITICAL RULES:
             }
         }
 
-// Сохраняем промпт для отладки
         const pass2PromptText = `
 Generate code for this UI screenshot.
 You are receiving 4 images of the SAME page:
@@ -285,11 +277,8 @@ ${stack.includes('React') && mode === 'template'
 
         const generatedHTML = await callAICode([{
             role: 'user',
-            content: [
-                ...imagesForPass2,
-                { type: 'text', text: pass2PromptText }
-            ]
-        }])
+            content: [...imagesForPass2, { type: 'text', text: pass2PromptText }]
+        }], apiKey, finalModel)
 
         let fixedHTML = generatedHTML
             .replace(/src="\/(?!\/)[^"]+"/g, 'src="https://placehold.co/400x300/111111/39d353?text=Image"')
@@ -309,7 +298,6 @@ ${stack.includes('React') && mode === 'template'
             return [{ name: stack.includes('React') ? 'App.jsx' : 'index.html', content: fixedHTML }]
         })()
 
-        // Сохраняем для отладки
         lastGenerationDebug.pass1Prompt = pass1PromptText
         lastGenerationDebug.pass1Result = analysisRaw
         lastGenerationDebug.pass1Parsed = analysis

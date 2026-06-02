@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { apiFetch } from '../api'
 
-const HISTORY_LIMIT = 10 // ← меняй здесь
+const HISTORY_LIMIT = 10
 
 export default function HistoryDrawer({ open, onClose, onRestore }) {
     const [generations, setGenerations] = useState([])
@@ -15,11 +16,8 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
 
     async function loadHistory() {
         setLoading(true)
-        const token = localStorage.getItem('token')
         try {
-            const res = await fetch(`http://localhost:3001/api/history`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
+            const res = await apiFetch('/api/history')
             const data = await res.json()
             setGenerations(Array.isArray(data) ? data.slice(0, HISTORY_LIMIT) : [])
         } catch {
@@ -31,14 +29,8 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
 
     async function deleteOne(id, e) {
         e.stopPropagation()
-        const token = localStorage.getItem('token')
+        const res = await apiFetch(`/api/history/${id}`, { method: 'DELETE' })
 
-        const res = await fetch(`http://localhost:3001/api/history/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-
-        // Проверка ответа
         if (!res.ok) {
             try {
                 const data = await res.json()
@@ -46,10 +38,9 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
             } catch {
                 alert(`Ошибка сервера: ${res.status}`)
             }
-            return  // Не обновляем UI, если ошибка
+            return
         }
 
-        // Только если всё ок — обновляем UI
         setGenerations(prev => prev.filter(g => g._id !== id))
     }
 
@@ -73,13 +64,9 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
     }
 
     async function executeClear() {
-        const token = localStorage.getItem('token')
         const ids = generations.map(g => g._id)
         await Promise.all(ids.map(id =>
-            fetch(`http://localhost:3001/api/history/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
+            apiFetch(`/api/history/${id}`, { method: 'DELETE' })
         ))
         setGenerations([])
         setClearTimer(null)
@@ -93,13 +80,11 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
             <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }} onClick={onClose} />
             <div style={{ width: 420, background: '#fff', boxShadow: '-4px 0 20px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-                {/* Шапка */}
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>История генераций</span>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280' }}>×</button>
                 </div>
 
-                {/* Список */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {loading && <div style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingTop: 40 }}>Загрузка...</div>}
 
@@ -111,7 +96,6 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
                         <div key={g._id} onClick={() => { onRestore(g._id); onClose() }}
                              style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, cursor: 'pointer', background: '#fafafa', position: 'relative' }}>
 
-                            {/* Кнопка удаления */}
                             <button onClick={(e) => deleteOne(g._id, e)}
                                     style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
                                     title="Удалить">
@@ -141,7 +125,6 @@ export default function HistoryDrawer({ open, onClose, onRestore }) {
                     ))}
                 </div>
 
-                {/* Футер — очистка */}
                 {generations.length > 0 && (
                     <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
                         {clearTimer ? (

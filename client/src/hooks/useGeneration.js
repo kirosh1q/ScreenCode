@@ -1,69 +1,47 @@
 import { useState } from 'react'
+import { apiFetch } from '../api'
 
 export function useGeneration() {
-    const [file, setFile] = useState(null)
     const [previewUrl, setPreviewUrl] = useState(null)
+    const [file, setFile] = useState(null)
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState(null)
     const [error, setError] = useState(null)
 
     function handleFile(f) {
         if (!f) {
-            setFile(null)
             setPreviewUrl(null)
-            setResult(null)
-            setError(null)
+            setFile(null)
             return
         }
         setFile(f)
         setPreviewUrl(URL.createObjectURL(f))
-        setResult(null)
         setError(null)
     }
 
-    async function generate(selectedStack, selectedMode) {
-        if (!file) return setError('Выбери скриншот')
+    async function generate(stack, mode, apiKey, model) {
+        if (!file) return
         setLoading(true)
         setError(null)
         setResult(null)
 
         try {
-            const form = new FormData()
-            form.append('image', file)
-            form.append('stack', selectedStack)
-            form.append('mode', selectedMode)
+            const formData = new FormData()
+            formData.append('image', file)
+            formData.append('stack', stack)
+            formData.append('mode', mode)
+            formData.append('apiKey', apiKey)
+            formData.append('model', model)
 
-            const token = localStorage.getItem('token')
-            const res = await fetch('http://localhost:3001/api/generate', {
+            const res = await apiFetch('/api/generate', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: form
+                body: formData,
             })
 
             const data = await res.json()
-            if (!res.ok) throw new Error(data.error || 'Ошибка сервера')
-            setResult(data.data)
+            if (!res.ok) throw new Error(data.error || 'Ошибка генерации')
 
-            if (token) {
-                fetch('http://localhost:3001/api/history', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        stack: selectedStack,
-                        mode: selectedMode,
-                        layout: data.data.layout,
-                        sections: data.data.sections,
-                        colors: data.data.colors,
-                        files: data.data.files
-                    })
-                }).catch(err => console.error('История не сохранилась:', err))
-            }
-
+            setResult(data)
         } catch (err) {
             setError(err.message)
         } finally {
@@ -90,6 +68,7 @@ export function useGeneration() {
             }))
         }
     }
+
     function reset() {
         setFile(null)
         setPreviewUrl(null)

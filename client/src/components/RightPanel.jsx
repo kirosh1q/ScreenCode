@@ -1,17 +1,16 @@
 import { useState } from 'react'
+import { apiFetch } from '../api'
 
-export default function RightPanel({ result, onCodeUpdate }) {
+export default function RightPanel({ result, onCodeUpdate, apiKey, model }) {
     const [editText, setEditText] = useState('')
     const [messages, setMessages] = useState([
         { type: 's', text: 'Опишите что изменить.' }
     ])
-
     const [editLoading, setEditLoading] = useState(false)
 
     async function sendEdit() {
         const t = editText.trim()
-        if (!t || !result) return
-        if (editLoading) return
+        if (!t || !result || editLoading) return
 
         setMessages(prev => [...prev, { type: 'u', text: t }])
         setEditText('')
@@ -20,13 +19,16 @@ export default function RightPanel({ result, onCodeUpdate }) {
         try {
             const currentCode = result.generatedHTML || result.files?.[0]?.content || ''
             const allFiles = result.files || []
-            const res = await fetch('http://localhost:3001/api/edit', {
+
+            const res = await apiFetch('/api/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     currentCode,
                     editPrompt: t,
-                    allFiles  // ← передаём все файлы
+                    allFiles,
+                    apiKey,
+                    model
                 })
             })
 
@@ -44,7 +46,6 @@ export default function RightPanel({ result, onCodeUpdate }) {
 
     return (
         <div style={{ background: '#fff', borderLeft: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
             <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0', flexShrink: 0, maxHeight: '45vh', overflowY: 'auto' }}>
                 <div style={label}>Анализ структуры</div>
                 {!result ? (
@@ -64,8 +65,8 @@ export default function RightPanel({ result, onCodeUpdate }) {
                                         <span style={{ flex: 1, color: '#374151' }}>{name}</span>
                                         {type && (
                                             <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: isDynamic ? '#fef2f2' : '#f3f4f6', color: isDynamic ? '#ef4444' : '#6b7280', border: `1px solid ${isDynamic ? '#fecaca' : '#e5e7eb'}` }}>
-            {isDynamic ? 'динамичный' : 'статичный'}
-          </span>
+                                                {isDynamic ? 'динамичный' : 'статичный'}
+                                            </span>
                                         )}
                                     </div>
                                     {desc && <div style={{ marginTop: 3, fontSize: 10, color: '#9ca3af', paddingLeft: 15 }}>{desc}</div>}
@@ -86,7 +87,7 @@ export default function RightPanel({ result, onCodeUpdate }) {
                 )}
             </div>
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, gap: 10, minHeight: 0, maxWidth: '100%'}}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, gap: 10, minHeight: 0, maxWidth: '100%' }}>
                 <div style={label}>Редактирование</div>
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
                     {messages.map((m, i) => (

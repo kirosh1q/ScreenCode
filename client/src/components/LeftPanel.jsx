@@ -1,25 +1,16 @@
-import { useEffect, useState } from 'react'
+
 export const stacks = ['HTML + Tailwind', 'HTML + CSS', 'React + Tailwind']
-export const models = ['Qwen 3.5']
 
 export default function LeftPanel({
                                       previewUrl, onFile, loading,
                                       selectedStack, setSelectedStack,
-                                      selectedModel, setSelectedModel,
                                       selectedMode, setSelectedMode,
                                       onGenerate, error, user,
+                                      apiKey, setApiKey, customModel, setCustomModel // ← ДОБАВИТЬ
                                   }) {
-    const [models, setModels] = useState(['Qwen 3.5']) // дефолтное значение
-
-    useEffect(() => {
-        fetch('/api/models')  // относительный URL — Vite проксирует на сервер
-            .then(r => r.json())
-            .then(data => {
-                // Сохраняем только названия для UI
-                setModels(data.models.map(m => m.name))
-            })
-            .catch(err => console.error('Не удалось загрузить модели:', err))
-    }, []) // пустой массив = выполнить один раз при монтировании
+    // УБРАТЬ локальное состояние:
+    // const [apiKey, setApiKey] = useState('')
+    // const [customModel, setCustomModel] = useState('qwen/qwen3.6-plus')
 
     function handleChange(e) {
         const f = e.target.files[0]
@@ -32,10 +23,12 @@ export default function LeftPanel({
         if (f) onFile(f)
     }
 
+    function handleGenerateClick() {
+        onGenerate(selectedStack, selectedMode, apiKey, customModel)
+    }
+
     return (
         <div style={{ background: '#fff', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-
-            {/* Скриншот */}
             {/* Скриншот */}
             <div style={block}>
                 <div style={label}>Скриншот</div>
@@ -53,7 +46,6 @@ export default function LeftPanel({
                         <div style={{ fontSize: 11, marginTop: 4 }}>чтобы загрузить скриншот</div>
                     </div>
                 ) : (
-                    // Твоя существующая логика с previewUrl, label, input и т.д.
                     <>
                         {previewUrl ? (
                             <img src={previewUrl} style={{ width: '100%', borderRadius: 8, maxHeight: 160, objectFit: 'cover', border: '1px solid #e5e7eb' }} />
@@ -96,18 +88,25 @@ export default function LeftPanel({
                 </div>
             </div>
 
-            {/* Модель */}
+            {/* API Ключ и Модель */}
             <div style={block}>
-                <div style={label}>Модель</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {models.map(m => (
-                        <div key={m} onClick={() => setSelectedModel(m)} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1.5px solid ${selectedModel === m ? '#111' : '#e5e7eb'}`, borderRadius: 7, padding: '8px 12px', cursor: 'pointer', background: selectedModel === m ? '#f9f9f9' : '#fff' }}>
-                            <div style={{ width: 14, height: 14, borderRadius: '50%', border: `1.5px solid ${selectedModel === m ? '#111' : '#d1d5db'}`, position: 'relative', flexShrink: 0 }}>
-                                {selectedModel === m && <div style={{ position: 'absolute', inset: 2, background: '#111', borderRadius: '50%' }} />}
-                            </div>
-                            <span style={{ fontSize: 12, color: selectedModel === m ? '#111' : '#374151', fontWeight: selectedModel === m ? 500 : 400 }}>{m}</span>
-                        </div>
-                    ))}
+                <div style={label}>Настройки AI (OpenRouter)</div>
+                <input
+                    type="text"
+                    placeholder="sk-or-v1-..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 12, marginBottom: 8, outline: 'none', boxSizing: 'border-box' }}
+                />
+                <input
+                    type="text"
+                    placeholder="qwen/qwen3.6-plus"
+                    value={customModel}
+                    onChange={(e) => setCustomModel(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                />
+                <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 6 }}>
+                    Ключ не сохраняется на сервере.
                 </div>
             </div>
 
@@ -143,24 +142,18 @@ export default function LeftPanel({
                     </div>
                 )}
                 <button
-                    onClick={onGenerate}
-                    disabled={loading || !previewUrl || !user}
+                    onClick={handleGenerateClick}
+                    disabled={loading || !previewUrl || !user || !apiKey}
                     style={{
-                        width: '100%',
-                        padding: 11,
-                        background: (loading || !previewUrl || !user) ? '#d1d5db' : '#111',
-                        border: 'none',
-                        borderRadius: 8,
-                        color: '#fff',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        cursor: (loading || !previewUrl || !user) ? 'not-allowed' : 'pointer'
+                        width: '100%', padding: 11,
+                        background: (loading || !previewUrl || !user || !apiKey) ? '#d1d5db' : '#111',
+                        border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 500,
+                        cursor: (loading || !previewUrl || !user || !apiKey) ? 'not-allowed' : 'pointer'
                     }}
                 >
                     {loading ? 'Генерирую...' : 'Сгенерировать'}
                 </button>
             </div>
-
         </div>
     )
 }

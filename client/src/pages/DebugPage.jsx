@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { stacks, models } from '../components/LeftPanel.jsx'
+import { stacks } from '../components/LeftPanel.jsx'
 
 export default function DebugPage() {
     const [file, setFile] = useState(null)

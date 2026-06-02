@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '../api'
 
 export default function AuthPage({ onLogin, defaultTab = 'login' }) {
     const [isLogin, setIsLogin] = useState(defaultTab === 'login')
     const [form, setForm] = useState({ login: '', email: '', password: '' })
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
-    const navigate = useNavigate()
 
-    // Forgot password
     const [showForgot, setShowForgot] = useState(false)
     const [forgotEmail, setForgotEmail] = useState('')
     const [forgotMsg, setForgotMsg] = useState(null)
     const [forgotLoading, setForgotLoading] = useState(false)
+
+    const navigate = useNavigate()
 
     function handleChange(e) {
         setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -27,7 +28,7 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
                 ? { login: form.login, password: form.password }
                 : { login: form.login, email: form.email, password: form.password }
 
-            const res = await fetch(`http://localhost:3001/api/auth/${isLogin ? 'login' : 'register'}`, {
+            const res = await apiFetch(`/api/auth/${isLogin ? 'login' : 'register'}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
@@ -48,7 +49,7 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
         setForgotLoading(true)
         setForgotMsg(null)
         try {
-            const res = await fetch('http://localhost:3001/api/auth/forgot-password', {
+            const res = await apiFetch('/api/auth/forgot-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: forgotEmail })
@@ -74,7 +75,6 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
         setForgotMsg(null)
     }
 
-    // ── Экран восстановления пароля ──
     if (showForgot) {
         return (
             <div style={pageStyle}>
@@ -127,13 +127,11 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
         )
     }
 
-    // ── Основной экран входа/регистрации ──
     return (
         <div style={pageStyle}>
             <div style={cardStyle}>
                 <div style={logoStyle}>ScreenCode</div>
 
-                {/* Переключатель вход / регистрация */}
                 <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3, marginBottom: 24, gap: 3 }}>
                     {[['login', 'Вход'], ['register', 'Регистрация']].map(([val, label]) => {
                         const active = (isLogin ? 'login' : 'register') === val
@@ -156,7 +154,6 @@ export default function AuthPage({ onLogin, defaultTab = 'login' }) {
                     })}
                 </div>
 
-                {/* Поля */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <input
                         name="login"

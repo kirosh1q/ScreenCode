@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '../api'
 
 export default function AccountPage({ user, onLogout }) {
     const [info, setInfo] = useState({ login: '', email: '' })
@@ -22,10 +23,9 @@ export default function AccountPage({ user, onLogout }) {
 
         setLoading(true)
         try {
-            const token = localStorage.getItem('token')
-            const res = await fetch('http://localhost:3001/api/auth/change-password', {
+            const res = await apiFetch('/api/auth/change-password', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ oldPassword: passwords.old, newPassword: passwords.new })
             })
             const data = await res.json()
@@ -44,16 +44,14 @@ export default function AccountPage({ user, onLogout }) {
     }
 
     return (
-
         <div style={{ minHeight: '100vh', background: '#f4f4f5', fontFamily: 'Inter, sans-serif', color: '#111' }}>
             <header style={{ height: 52, background: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px' }}>
-                <div style={{ fontWeight: 600, fontSize: 15, cursor: 'pointer', color: '#000000' }} onClick={() => navigate('/')}>На главную</div>
+                <div style={{ fontWeight: 600, fontSize: 15, cursor: 'pointer' }} onClick={() => navigate('/')}>На главную</div>
                 <button onClick={() => navigate('/')} style={{ fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>← Назад</button>
             </header>
 
             <div style={{ maxWidth: 480, margin: '10px auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-                {/* Информация */}
                 <div style={card}>
                     <div style={cardTitle}>Информация об аккаунте</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -68,23 +66,6 @@ export default function AccountPage({ user, onLogout }) {
                     </div>
                 </div>
 
-                {/* Кредиты */}
-                <div style={card}>
-                    <div style={cardTitle}>Кредиты</div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                            <div style={label}>Доступно</div>
-                            <div style={{ fontSize: 28, fontWeight: 600, color: '#5171da' }}>—</div>
-                            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>1 кредит = 1 генерация</div>
-                        </div>
-                        <button style={{ padding: '8px 16px', background: '#2563eb', border: 'none', borderRadius: 7, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: 0.5 }}
-                                title="Появится позже">
-                            Купить кредиты
-                        </button>
-                    </div>
-                </div>
-
-                {/* Смена email */}
                 <div style={card}>
                     <div style={cardTitle}>Смена email</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -103,7 +84,6 @@ export default function AccountPage({ user, onLogout }) {
                     </div>
                 </div>
 
-                {/* Смена пароля */}
                 <div style={card}>
                     <div style={cardTitle}>Смена пароля</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -130,7 +110,6 @@ export default function AccountPage({ user, onLogout }) {
                     </div>
                 </div>
 
-                {/* Выход */}
                 <button onClick={onLogout}
                         style={{ padding: '10px', background: '#6091f8', border: '1px solid #446bc3', borderRadius: 7, color: '#ffffff', fontSize: 13, cursor: 'pointer' }}>
                     Выйти из аккаунта

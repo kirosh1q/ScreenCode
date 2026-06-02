@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import { apiFetch } from '../api'
 
 export default function ConfirmEmailPage() {
     const [params] = useSearchParams()
@@ -8,18 +9,20 @@ export default function ConfirmEmailPage() {
     const [msg, setMsg] = useState('Подтверждаем...')
 
     useEffect(() => {
-        fetch('http://localhost:3001/api/auth/confirm-email-change', {
+        apiFetch('/api/auth/confirm-email-change', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token })
-        }).then(r => r.json()).then(data => {
-            if (data.success) {
-                setMsg('Email успешно изменён! Перенаправляем...')
-                setTimeout(() => navigate('/account'), 2000)
-            } else {
-                setMsg('Ошибка: ' + data.error)
-            }
         })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    setMsg('Email успешно изменён! Перенаправляем...')
+                    setTimeout(() => navigate('/account'), 2000)
+                } else {
+                    setMsg('Ошибка: ' + data.error)
+                }
+            })
     }, [token])
 
     return (
