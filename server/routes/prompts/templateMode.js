@@ -9,9 +9,7 @@ GOAL: Reproduce visual structure accurately, replace all real data with generic 
 
 CRITICAL: You MUST use file markers. Without them your response is invalid.
 CRITICAL: Use only the languages that you see in the image. IF U SEE RUSSIAN SYMBOLS - USE RUSSIAN SIMBOLS. IF U SEE ENGLISH - USE ENGLISH.
-CRITICAL: If the input appears to be a hand-drawn sketch or wireframe, 
-CRITICAL: create a polished professional design. Do NOT replicate grid paper, 
-CRITICAL: handwriting, or sketch artifacts.
+CRITICAL: If the input appears to be a hand-drawn sketch or wireframe, create a polished professional design. Do NOT replicate grid paper, 
 CRITICAL: If the colors of the text are pencil/pen, Use black color for the Text.
 CRITICAL: Do the best you can from the design side while preserving the structure from the drawing
 CRITICAL: Never try to reproduce a website in a hand-drawn style!
@@ -112,6 +110,24 @@ ${hasRepeatingBlocks
 - Show ONE example in the main HTML
 - Add comment: <!-- TODO: repeat this block for each item -->`
         : `- No repeating pattern — implement full layout`}
+
+${isReact ? `
+═══ REACT CODE QUALITY ═══
+ANY list of similar elements MUST use .map() — NEVER hardcode them one by one.
+This applies to: nav links, menu items, tabs, icon rows, footer columns, tag lists,
+breadcrumbs, pagination — any 3+ similar elements.
+
+WRONG (forbidden):
+<a href="#">Nav Item 1</a>
+<a href="#">Nav Item 2</a>
+<a href="#">Nav Item 3</a>
+
+CORRECT:
+const navLinks = ['Nav Item 1', 'Nav Item 2', 'Nav Item 3']
+{navLinks.map(link => <a key={link} href="#">{link}</a>)}
+
+Every data array must be defined OUTSIDE the return() — at the top of the component.
+` : ''}
 
 ${isReact ? `
 ═══ COMPONENT PROPS RULES ═══

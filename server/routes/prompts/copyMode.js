@@ -17,13 +17,14 @@ ${stack === 'React + Tailwind' ? `
   • HTML + CSS: <!DOCTYPE html> with <style> tag in <head>
 - No file markers needed for HTML stacks
 `}
+
+CRITICAL: You MUST use file markers. Without them your response is invalid.
 CRITICAL: Use only the languages that you see in the image. IF U SEE RUSSIAN SYMBOLS - USE RUSSIAN SIMBOLS. IF U SEE ENGLISH - USE ENGLISH.
-CRITICAL: If the input appears to be a hand-drawn sketch or wireframe, 
-CRITICAL: create a polished professional design. Do NOT replicate grid paper, 
-CRITICAL: handwriting, or sketch artifacts.
+CRITICAL: If the input appears to be a hand-drawn sketch or wireframe, create a polished professional design. Do NOT replicate grid paper, 
 CRITICAL: If the colors of the text are pencil/pen, Use black color for the Text.
 CRITICAL: Do the best you can from the design side while preserving the structure from the drawing
 CRITICAL: Never try to reproduce a website in a hand-drawn style!
+
 
 ═══ VISUAL PRIORITY (most important) ═══
 1. Final result MUST match brightness, spacing, proportions from ALL provided images
@@ -113,6 +114,30 @@ ${hasRepeatingBlocks ? `
   ]
   {streams.map((s, i) => <StreamCard key={i} {...s} />)}
 ` : `- No repeating pattern — implement full layout`}
+
+${stack === 'React + Tailwind' ? `
+═══ REACT CODE QUALITY ═══
+ANY list of similar elements MUST use .map() — NEVER hardcode them one by one.
+This applies to: nav links, menu items, tabs, icon rows, footer columns, tag lists,
+breadcrumbs, pagination — any 3+ similar elements.
+
+WRONG (forbidden):
+<a href="#">NEWS</a>
+<a href="#">ATHLETES</a>
+<a href="#">EVENTS</a>
+
+CORRECT:
+const navLinks = ['NEWS', 'ATHLETES', 'EVENTS']
+{navLinks.map(link => <a key={link} href="#">{link}</a>)}
+
+For nav with dropdowns:
+const navLinks = [
+  { label: 'ENERGY DRINKS', dropdown: ['Product 1', 'Product 2'] },
+  { label: 'NEWS', dropdown: null },
+]
+
+Every data array must be defined OUTSIDE the return() — at the top of the component.
+` : ''}
 
 ═══ STACK-SPECIFIC RULES ═══
 ${stack === 'React + Tailwind' ? `

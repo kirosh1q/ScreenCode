@@ -85,6 +85,9 @@ function getStackRules(stack, mode) {
 - All interactive elements must have: className="... cursor-pointer hover:opacity-80"
 - Active/selected tab must have visually distinct style
 - Use plain JavaScript (JSX), NOT TypeScript — no type annotations, no React.FC
+- ALWAYS use .map() for any list of 3+ similar items (nav links, tabs, cards, icons)
+- Data arrays must be defined OUTSIDE return(), at the top of the component
+- NEVER duplicate JSX for similar items — extract to array + .map()
 `
     }
 
